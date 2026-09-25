@@ -21,8 +21,8 @@ MAX_CACHED_BACKGROUNDS = 3
 # OpenCV uses BGR.  The materials are deliberately quieter than the playable
 # circles, so a target remains the most obvious object to reach for.
 STAGE_INK = (0, 0, 0)
-STAGE_PANEL = (20, 20, 20)
-STAGE_BORDER = (92, 92, 92)
+STAGE_PANEL = (23, 16, 11)
+STAGE_BORDER = (72, 61, 48)
 STICK_WOOD = (88, 154, 224)
 STICK_HIGHLIGHT = (194, 226, 249)
 STICK_SHADOW = (10, 13, 20)
@@ -355,6 +355,7 @@ def _fit_camera_inset(
     frame_height: int,
     source_width: int,
     source_height: int,
+    compact: bool = False,
 ) -> tuple[int, int, int, int, int, int]:
     """Return outer and inner bounds for a bottom-right camera inset."""
     minimum = min(frame_width, frame_height)
@@ -363,7 +364,10 @@ def _fit_camera_inset(
     header_height = max(14, round(minimum * 0.032))
     available_width = max(1, frame_width - margin * 2)
     available_height = max(1, frame_height - margin * 2 - header_height - padding * 2)
-    inner_width = min(max(72, round(frame_width * 0.29)), available_width - padding * 2)
+    inner_width = min(
+        max(72, round(frame_width * (0.23 if compact else 0.29))),
+        available_width - padding * 2,
+    )
     aspect_ratio = source_width / max(1, source_height)
     inner_height = max(1, round(inner_width / max(0.1, aspect_ratio)))
     max_inner_height = max(1, min(round(frame_height * 0.31), available_height))
@@ -386,6 +390,7 @@ def draw_camera_inset(
     *,
     mode_label: str,
     hand_count: int,
+    compact: bool = False,
 ) -> tuple[int, int, int, int]:
     """Draw the real camera plus skeleton evidence in a compact inset.
 
@@ -400,6 +405,7 @@ def draw_camera_inset(
         frame_height,
         source_width,
         source_height,
+        compact,
     )
     corner_radius = max(5, round(min(frame_width, frame_height) * 0.018))
 

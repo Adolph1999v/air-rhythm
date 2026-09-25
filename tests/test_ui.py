@@ -50,6 +50,7 @@ class UserInterfaceTests(unittest.TestCase):
                 },
             ),
             lambda frame: ui.draw_countdown(frame, "GO!", progress=2.0),
+            lambda frame: ui.draw_tracking_warning(frame, (90, 80, 150, 115)),
             lambda frame: ui.draw_help_overlay(frame),
             lambda frame: ui.draw_debug_overlay(frame, {"hands": 1, "landmarks": 21}),
             lambda frame: ui.draw_results(
@@ -213,9 +214,10 @@ class UserInterfaceTests(unittest.TestCase):
         )
         self.assertIn("BRING BOTH HANDS INTO CAMERA VIEW", title_labels)
         self.assertIn(
-            "HIT FALLING CIRCLES WITH YOUR INDEX FINGERTIPS",
+            "Touch falling circles with a fingertip.",
             title_labels,
         )
+        self.assertIn("MAKE THE MUSIC MOVE.", title_labels)
 
         guide_frame = self.frame(1280, 720)
         with patch("ui.draw_text", wraps=ui.draw_text) as guide_text:

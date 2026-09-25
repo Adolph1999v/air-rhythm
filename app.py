@@ -15,6 +15,7 @@ import numpy as np
 from audio_engine import AudioEngine
 from camera_capture import LatestFrameCamera
 from hand_stabilizer import HandLandmarkStabilizer
+from wrist_guidance import WristVisibilityMonitor
 from performance_benchmark import PerformanceBenchmark, save_benchmark_report
 from music import (
     ALL_PITCHES,
@@ -790,83 +791,79 @@ def draw_falling_nodes(
     active_nodes: list[FallingNode],
     current_time: float | None = None,
 ) -> None:
-    """Draw ordered music targets and make the next chart note brighter."""
-    transparent_overlay = frame.copy()
+    """Draw browser-style notes with a gold edge on the next chart note."""
     chart_indices = [
-        node.chart_index
-        for node in active_nodes
-        if node.chart_index is not None
+        node.chart_index for node in active_nodes if node.chart_index is not None
     ]
     next_chart_index = min(chart_indices) if chart_indices else None
+    frame_height, frame_width = frame.shape[:2]
 
     for node in active_nodes:
         center = (round(node.x), round(node.y))
+        radius = max(1, int(node.radius))
+        is_next = node.chart_index is not None and node.chart_index == next_chart_index
+        edge_color = ui.GOLD if is_next else node.color
+
+        # Work in a small local area so the glow does not copy the full stage
+        # for every falling note.
+        padding = max(5, radius // 3)
+        left = max(0, center[0] - radius - padding)
+        top = max(0, center[1] - radius - padding)
+        right = min(frame_width, center[0] + radius + padding + 1)
+        bottom = min(frame_height, center[1] + radius + padding + 1)
+        if right <= left or bottom <= top:
+            continue
+        roi = frame[top:bottom, left:right]
+        glow = roi.copy()
+        local_center = (center[0] - left, center[1] - top)
         cv2.circle(
-            transparent_overlay,
-            center,
-            node.radius,
-            node.color,
-            -1,
-            cv2.LINE_AA,
+            glow, local_center, radius + max(3, padding // 2),
+            edge_color, -1, cv2.LINE_AA,
         )
+        cv2.addWeighted(glow, 0.13 if is_next else 0.08, roi, 0.87 if is_next else 0.92, 0, roi)
 
-    cv2.addWeighted(transparent_overlay, 0.32, frame, 0.68, 0, frame)
-
-    for node in active_nodes:
-        center = (round(node.x), round(node.y))
-        is_next = (
-            next_chart_index is not None
-            and node.chart_index == next_chart_index
-        )
-        border_color = node.color
-        border_thickness = 4
-        if is_next:
-            # Brighten the existing target itself.  There is deliberately no
-            # extra timing ring or fixed target marker.
-            highlight_overlay = frame.copy()
-            brighter_color = tuple(
-                min(255, round(channel * 0.62 + 255 * 0.38))
-                for channel in node.color
-            )
-            cv2.circle(
-                highlight_overlay,
-                center,
-                node.radius,
-                brighter_color,
-                -1,
-                cv2.LINE_AA,
-            )
-            cv2.addWeighted(highlight_overlay, 0.24, frame, 0.76, 0, frame)
-            border_color = brighter_color
-            border_thickness = 6
-
+        dark = (37, 25, 16)  # Browser note interior: #101925 in BGR.
+        mid = tuple(round(channel * 0.45 + shade * 0.55) for channel, shade in zip(node.color, dark))
+        cv2.circle(frame, center, radius, node.color, -1, cv2.LINE_AA)
+        cv2.circle(frame, center, max(1, round(radius * 0.87)), dark, -1, cv2.LINE_AA)
+        cv2.circle(frame, center, max(1, round(radius * 0.57)), mid, -1, cv2.LINE_AA)
         cv2.circle(
             frame,
-            center,
-            node.radius,
-            border_color,
-            border_thickness,
+            (center[0] - round(radius * 0.28), center[1] - round(radius * 0.34)),
+            max(1, round(radius * 0.09)),
+            ui.WHITE, -1, cv2.LINE_AA,
+        )
+        cv2.circle(
+            frame, center, radius, edge_color,
+            max(3, round(radius * 0.11)) if is_next else max(2, round(radius * 0.06)),
             cv2.LINE_AA,
         )
-        note_label = (
+
+        label = (
             note_name(node.midi_note)
             if node.midi_note is not None
             else INSTRUMENT_BY_KEY[node.instrument].label
         )
-        label = (
-            f"{node.chart_index + 1:02d} / {note_label}"
-            if node.chart_index is not None
-            else note_label
+        label_scale = min(0.85, max(0.30, radius * 0.012))
+        label_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, label_scale, 2)[0]
+        label_x = center[0] - label_size[0] // 2
+        label_y = center[1] + label_size[1] // 2 - (round(radius * 0.10) if node.chart_index is not None else 0)
+        cv2.putText(
+            frame, label, (label_x, label_y), cv2.FONT_HERSHEY_SIMPLEX,
+            label_scale, ui.TEXT_SHADOW, 4, cv2.LINE_AA,
         )
-        label_scale = min(0.48, node.radius / max(90, len(label) * 15))
-        (text_width, text_height), _ = cv2.getTextSize(
-            label, cv2.FONT_HERSHEY_SIMPLEX, label_scale, 1
+        cv2.putText(
+            frame, label, (label_x, label_y), cv2.FONT_HERSHEY_SIMPLEX,
+            label_scale, ui.WHITE, 2, cv2.LINE_AA,
         )
-        text_position = (center[0] - text_width // 2, center[1] + text_height // 2)
-        for color, thickness in (((20, 20, 20), 3), ((255, 255, 255), 1)):
+        if node.chart_index is not None:
+            order = f"{node.chart_index + 1:02d}"
+            order_scale = max(0.24, min(0.42, radius * 0.006))
+            order_size = cv2.getTextSize(order, cv2.FONT_HERSHEY_SIMPLEX, order_scale, 1)[0]
             cv2.putText(
-                frame, label, text_position, cv2.FONT_HERSHEY_SIMPLEX,
-                label_scale, color, thickness, cv2.LINE_AA,
+                frame, order,
+                (center[0] - order_size[0] // 2, center[1] + round(radius * 0.48)),
+                cv2.FONT_HERSHEY_SIMPLEX, order_scale, ui.MUTED, 1, cv2.LINE_AA,
             )
 
 
@@ -875,88 +872,44 @@ def draw_hit_effects(
     hit_effects: list[HitEffect],
     current_time: float,
 ) -> None:
-    """Draw a briefly expanding ring with timing or movement feedback."""
-    rating_colors = {
-        "GOOD": (255, 255, 255),
-        "GREAT": (40, 210, 255),
-        "PERFECT": (80, 255, 80),
-        "HIT": (210, 145, 255),
-        "TOUCH": (255, 255, 255),
-        "STRONG": (40, 210, 255),
-        "POWER": (80, 255, 80),
-    }
-
+    """Show brief floating hit labels, without a second circle around notes."""
+    frame_height, frame_width = frame.shape[:2]
+    scale = max(0.4, min(1.4, min(frame_width / 1280, frame_height / 720)))
     for effect in hit_effects:
         progress = (current_time - effect.started_at) / HIT_EFFECT_DURATION_SECONDS
-        ring_radius = int(25 + progress * 45)
-        ui.draw_glow_circle(
-            frame,
-            effect.position,
-            ring_radius,
-            effect.color,
-            1.0 - progress,
-        )
-        text_size, _ = cv2.getTextSize(
-            effect.rating,
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            2,
-        )
-        text_position = (
-            effect.position[0] - text_size[0] // 2,
-            max(28, effect.position[1] - ring_radius - 10),
+        if not 0 <= progress <= 1:
+            continue
+        x = int(effect.position[0])
+        y = int(effect.position[1] - progress * frame_height * 0.08)
+        fade = 0.35 + 0.65 * (1.0 - progress)
+        color = tuple(round(channel * fade) for channel in ui.WHITE)
+        rating = str(effect.rating)
+        text_scale = max(0.42, 0.70 * scale)
+        text_width = cv2.getTextSize(rating, cv2.FONT_HERSHEY_SIMPLEX, text_scale, 2)[0][0]
+        origin = (x - text_width // 2, max(18, y))
+        cv2.putText(
+            frame, rating, origin, cv2.FONT_HERSHEY_SIMPLEX,
+            text_scale, ui.TEXT_SHADOW, 4, cv2.LINE_AA,
         )
         cv2.putText(
-            frame,
-            effect.rating,
-            text_position,
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (20, 20, 20),
-            5,
-            cv2.LINE_AA,
+            frame, rating, origin, cv2.FONT_HERSHEY_SIMPLEX,
+            text_scale, color, 2, cv2.LINE_AA,
         )
         if effect.detail:
-            detail_size, _ = cv2.getTextSize(
-                effect.detail,
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.42,
-                1,
+            detail = str(effect.detail)
+            detail_scale = max(0.28, 0.42 * scale)
+            detail_width = cv2.getTextSize(
+                detail, cv2.FONT_HERSHEY_SIMPLEX, detail_scale, 1,
+            )[0][0]
+            detail_origin = (
+                x - detail_width // 2,
+                min(frame_height - 8, origin[1] + max(15, int(20 * scale))),
             )
-            detail_position = (
-                effect.position[0] - detail_size[0] // 2,
-                min(frame.shape[0] - 15, effect.position[1] + ring_radius + 24),
-            )
+            detail_color = tuple(round(channel * fade) for channel in effect.color)
             cv2.putText(
-                frame,
-                effect.detail,
-                detail_position,
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.42,
-                (20, 20, 20),
-                4,
-                cv2.LINE_AA,
+                frame, detail, detail_origin, cv2.FONT_HERSHEY_SIMPLEX,
+                detail_scale, detail_color, 1, cv2.LINE_AA,
             )
-            cv2.putText(
-                frame,
-                effect.detail,
-                detail_position,
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.42,
-                (245, 245, 245),
-                1,
-                cv2.LINE_AA,
-            )
-        cv2.putText(
-            frame,
-            effect.rating,
-            text_position,
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            rating_colors[effect.rating],
-            2,
-            cv2.LINE_AA,
-        )
 
 
 def draw_strike_feedback(
@@ -1058,6 +1011,7 @@ def main() -> None:
         reported_audio_error = audio.error_message
         with create_hand_landmarker() as hand_landmarker:
             hand_stabilizer = HandLandmarkStabilizer()
+            wrist_monitor = WristVisibilityMonitor()
             previous_timestamp_ms = -1
             previous_frame_time = time.monotonic()
             last_spawn_time = previous_frame_time - NODE_SPAWN_INTERVAL_SECONDS
@@ -1148,6 +1102,10 @@ def main() -> None:
                     current_time,
                 )
                 detection_result = stabilized_hands.active
+                wrist_warning = wrist_monitor.update(
+                    detection_result.hand_landmarks,
+                    current_time,
+                )
                 visible_hand_landmarks = (
                     stabilized_hands.visible.hand_landmarks
                 )
@@ -1445,6 +1403,9 @@ def main() -> None:
                         basic_hits=score.basic_hits,
                         song_label=f"{MELODY_TITLE} challenge",
                         replay_hint="R / SPACE  Replay     T  Title",
+                        hand_count=hand_count,
+                        privacy_label=privacy_label,
+                        sound_label=sound_label,
                     )
 
                 if show_debug:
@@ -1454,12 +1415,15 @@ def main() -> None:
                         top_offset=max(50, int(stage_height * 0.13)),
                     )
 
-                draw_camera_inset(
+                inset_bounds = draw_camera_inset(
                     display_frame,
                     input_preview,
                     mode_label=privacy_label,
                     hand_count=hand_count,
+                    compact=screen is AppScreen.GAMEPLAY,
                 )
+                if screen is AppScreen.GAMEPLAY and not show_help and wrist_warning:
+                    ui.draw_tracking_warning(display_frame, inset_bounds)
 
                 if show_help:
                     ui.draw_help_overlay(display_frame)

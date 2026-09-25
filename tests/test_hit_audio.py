@@ -9,10 +9,12 @@ from app import (
     CHALLENGE_TARGET_HEIGHT_RATIO,
     FallingNode,
     FingertipMotion,
+    HitEffect,
     NodeHit,
     challenge_node_y,
     create_challenge_node,
     draw_falling_nodes,
+    draw_hit_effects,
     node_radius_for_frame,
     play_node_hits,
     run_sound_test,
@@ -33,6 +35,14 @@ class HitAudioTests(unittest.TestCase):
             x=200, y=y, radius=34, speed=0,
             color=instrument.color, instrument=instrument.key,
         )
+
+    def test_hit_feedback_is_text_only_without_an_extra_target_ring(self):
+        frame = np.zeros((480, 768, 3), dtype=np.uint8)
+        effect = HitEffect((380, 220), (255, 137, 44), 1.0, "GREAT", "ON BEAT")
+        with patch("app.ui.draw_glow_circle") as glow:
+            draw_hit_effects(frame, [effect], 1.1)
+        glow.assert_not_called()
+        self.assertTrue(np.any(frame))
 
     def test_stationary_contact_plays_once_and_removes_node(self):
         motion = FingertipMotion((200, 200), (200, 200), 0, None)
@@ -348,9 +358,11 @@ class HitAudioTests(unittest.TestCase):
             draw_falling_nodes(frame, [second, first])
 
         labels = [call.args[1] for call in put_text.call_args_list]
-        self.assertIn("01 / C4", labels)
-        self.assertIn("02 / E4", labels)
-        sample_y = 180 - first.radius // 2
+        self.assertIn("C4", labels)
+        self.assertIn("E4", labels)
+        self.assertIn("01", labels)
+        self.assertIn("02", labels)
+        sample_y = 180 - first.radius
         self.assertGreater(
             int(frame[sample_y, 180].sum()),
             int(frame[sample_y, 420].sum()),

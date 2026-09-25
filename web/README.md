@@ -40,4 +40,4 @@ From the repository root, `.venv/bin/python -m unittest discover -s tests` also 
 - The generated stage, virtual-stick shape, and mirrored camera/skeleton inset follow the desktop design. The browser implementation uses Canvas instead of OpenCV, TypeScript for the game rules, and Web Audio for the desktop-style synthesized sounds.
 - Video frames are processed on the visitor's device. This app does not upload or save camera frames. The MediaPipe runtime may handle usage metrics according to its own privacy notice.
 
-This is the first playable browser milestone, not yet a final public demo. Manual camera-and-audio testing in Chrome and Safari is still needed for this new gameplay. Phone layouts, camera orientation, and real-device performance tuning are next; the desktop app's diagnostic benchmark has not yet been ported to the web.
+This is a playable local browser milestone, not yet a final public demo. Chrome and Safari have been tried locally, but broader camera and audio testing is still needed. Phone layouts, camera orientation, and real-device performance tuning are next; the desktop app's diagnostic benchmark has not yet been ported to the web.

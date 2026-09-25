@@ -109,6 +109,18 @@ class PerformanceStageTests(unittest.TestCase):
         )
         self.assertFalse(np.any(np.all(stage[:top, :left] == (0, 250, 0), axis=2)))
 
+    def test_gameplay_inset_is_smaller_like_the_browser_layout(self):
+        camera = self.camera_frame()
+        normal_stage = create_performance_stage(camera)
+        compact_stage = normal_stage.copy()
+        normal = draw_camera_inset(normal_stage, camera, mode_label="Camera", hand_count=2)
+        compact = draw_camera_inset(
+            compact_stage, camera, mode_label="Camera", hand_count=2, compact=True,
+        )
+        self.assertLess(compact[2] - compact[0], normal[2] - normal[0])
+        self.assertEqual(compact[2], normal[2])
+        self.assertEqual(compact[3], normal[3])
+
 
 if __name__ == "__main__":
     unittest.main()

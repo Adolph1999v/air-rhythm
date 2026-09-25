@@ -234,10 +234,13 @@ This will add original ML work while MediaPipe continues to provide the raw hand
 - Support portfolio claims with evidence.
 - Explain tradeoffs, limitations, and lessons with confidence.
 
-## Desktop visual refresh after browser motion parity
+## Desktop visual parity with the browser
 
-- Bring the browser version's black-sky layout, typography, menus, and HUD back to the Python/OpenCV app after the web interaction has been tested.
-- Keep the desktop camera inset, hand skeleton, existing gameplay timing, and benchmark controls intact during that visual pass.
+**Status:** Implemented on a separate branch with camera-free tests; live-camera review is still pending before merging.
+
+- The desktop title, gameplay HUD, notes, countdown, results, and wrist-framing hint now use the browser's black-sky visual language.
+- The desktop camera inset, hand skeleton, gameplay timing, and benchmark controls remain intact.
+- Compare both versions during a live session at the showcase resolution before calling the visual pass complete.
 
 ## Optional later product and game ideas
 

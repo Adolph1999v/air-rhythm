@@ -13,17 +13,17 @@ import cv2
 
 
 # OpenCV colours use blue, green, red (BGR) order.
-INK = (0, 0, 0)
-TEXT_SHADOW = (20, 23, 34)
-PANEL = (20, 20, 20)
-PANEL_LIGHT = (52, 52, 52)
-WHITE = (244, 248, 255)
-MUTED = (176, 187, 211)
-CYAN = (255, 222, 67)
+INK = (5, 3, 2)
+TEXT_SHADOW = (20, 13, 8)
+PANEL = (18, 12, 5)
+PANEL_LIGHT = (56, 43, 30)
+WHITE = (255, 248, 245)
+MUTED = (197, 182, 168)
+CYAN = (255, 228, 97)
 BLUE = (255, 137, 44)
 MAGENTA = (229, 72, 255)
 GREEN = (112, 246, 104)
-GOLD = (75, 213, 255)
+GOLD = (122, 224, 255)
 RED = (90, 95, 255)
 FONT = cv2.FONT_HERSHEY_SIMPLEX
 
@@ -113,6 +113,31 @@ def _filled_round_rect(
         (right - radius, bottom - radius),
     ):
         cv2.circle(image, center, radius, color, -1, cv2.LINE_AA)
+
+
+def _outline_round_rect(
+    image,
+    rect: tuple[int, int, int, int],
+    color: tuple[int, int, int],
+    radius: int,
+) -> None:
+    """Outline a rounded card like the browser interface."""
+    left, top, right, bottom = rect
+    radius = max(0, min(radius, (right - left) // 2, (bottom - top) // 2))
+    if radius <= 1:
+        cv2.rectangle(image, (left, top), (right, bottom), color, 1, cv2.LINE_AA)
+        return
+    cv2.line(image, (left + radius, top), (right - radius, top), color, 1, cv2.LINE_AA)
+    cv2.line(image, (left + radius, bottom), (right - radius, bottom), color, 1, cv2.LINE_AA)
+    cv2.line(image, (left, top + radius), (left, bottom - radius), color, 1, cv2.LINE_AA)
+    cv2.line(image, (right, top + radius), (right, bottom - radius), color, 1, cv2.LINE_AA)
+    for center, start in (
+        ((left + radius, top + radius), 180),
+        ((right - radius, top + radius), 270),
+        ((right - radius, bottom - radius), 0),
+        ((left + radius, bottom - radius), 90),
+    ):
+        cv2.ellipse(image, center, (radius, radius), 0, start, start + 90, color, 1, cv2.LINE_AA)
 
 
 def fit_text_scale(
@@ -239,26 +264,7 @@ def draw_glass_panel(
     cv2.addWeighted(overlay, opacity, frame, 1.0 - opacity, 0, frame)
     left, top, right, bottom = rect
     border_color = accent if accent is not None else PANEL_LIGHT
-    # A thin top signal keeps hierarchy without the heavy, brightly bordered
-    # card look of the earlier interface.
-    if accent is not None and bottom > top and right > left:
-        cv2.line(
-            frame,
-            (left + corner_radius, top + 1),
-            (right - corner_radius, top + 1),
-            accent,
-            max(1, int(1.5 * scale)),
-            cv2.LINE_AA,
-        )
-    if border_color is not None:
-        cv2.line(
-            frame,
-            (left + corner_radius, bottom - 1),
-            (right - corner_radius, bottom - 1),
-            border_color,
-            1,
-            cv2.LINE_AA,
-        )
+    _outline_round_rect(frame, rect, border_color, corner_radius)
     return frame
 
 
@@ -337,6 +343,56 @@ def _draw_background_tint(frame, opacity: float = 0.62) -> None:
     cv2.addWeighted(overlay, _clamp01(opacity), frame, 1.0 - _clamp01(opacity), 0, frame)
 
 
+def _draw_shell(
+    frame,
+    hands: int,
+    privacy_label: str,
+    sound_label: str,
+    controls: str,
+) -> None:
+    """Keep the desktop top bar and footer aligned with the browser stage."""
+    width, height = _frame_size(frame)
+    scale = _ui_scale(frame)
+    margin = max(8, int(30 * scale))
+    brand_y = margin + max(13, int(17 * scale))
+    mark_x = margin + max(5, int(7 * scale))
+    mark_y = brand_y - max(5, int(6 * scale))
+    arm = max(4, int(8 * scale))
+    cv2.line(frame, (mark_x - arm, mark_y), (mark_x + arm, mark_y), CYAN, 2, cv2.LINE_AA)
+    cv2.line(frame, (mark_x, mark_y - arm), (mark_x, mark_y + arm), CYAN, 2, cv2.LINE_AA)
+    draw_text(
+        frame, "AIR RHYTHM", (margin + max(20, int(29 * scale)), brand_y),
+        max(0.33, 0.57 * scale), WHITE, 2,
+        max_width=max(55, int(width * 0.25)), min_scale=0.20,
+        font=cv2.FONT_HERSHEY_DUPLEX,
+    )
+    if width >= 700:
+        draw_text(
+            frame, "DESKTOP", (margin + max(175, int(205 * scale)), brand_y),
+            max(0.20, 0.32 * scale), MUTED, 1,
+            max_width=max(45, int(width * 0.11)), min_scale=0.14,
+        )
+        status = (
+            f"INPUT {str(privacy_label).upper()}  |  "
+            f"HANDS {max(0, _safe_int(hands))}/2  |  {str(sound_label).upper()}"
+        )
+        draw_text(
+            frame, status, (width - margin, brand_y),
+            max(0.20, 0.33 * scale), MUTED, 1, align="right",
+            max_width=max(70, int(width * 0.43)), min_scale=0.14,
+        )
+    footer_y = height - max(8, int(20 * scale))
+    cv2.line(
+        frame, (margin, footer_y - max(14, int(20 * scale))),
+        (width - margin, footer_y - max(14, int(20 * scale))),
+        PANEL_LIGHT, 1, cv2.LINE_AA,
+    )
+    draw_text(
+        frame, controls, (margin, footer_y), max(0.20, 0.32 * scale),
+        MUTED, 1, max_width=max(45, int(width * 0.58)), min_scale=0.14,
+    )
+
+
 def draw_title_screen(
     frame,
     hand_count: int,
@@ -345,183 +401,103 @@ def draw_title_screen(
     current_time: float,
     ready_progress: float | None = None,
 ) -> Any:
-    """Draw an airy landing screen over the person-free performance stage."""
+    """Draw the desktop menu in the browser's black-sky visual language."""
     width, height = _frame_size(frame)
     scale = _ui_scale(frame)
-    _draw_background_tint(frame, 0.18)
     center_x = width // 2
-    margin = max(6, int(18 * scale))
-    pulse_time = float(current_time) if isinstance(current_time, (int, float)) else 0.0
-    pulse = 0.5 + 0.5 * math.sin(pulse_time * 2.4) if math.isfinite(pulse_time) else 0.5
-
-    badge_right = min(width - margin, margin + max(112, int(210 * scale)))
-    badge_bottom = min(height - margin, margin + max(23, int(38 * scale)))
-    draw_glass_panel(
-        frame,
-        (margin, margin),
-        (badge_right, badge_bottom),
-        accent=CYAN,
-        alpha=0.48,
-        radius=max(8, int(22 * scale)),
-    )
-    draw_text(
-        frame,
-        "LIVE RHYTHM STAGE",
-        (margin + max(8, int(14 * scale)), badge_bottom - max(7, int(12 * scale))),
-        max(0.22, 0.39 * scale),
-        CYAN,
-        1,
-        max_width=max(30, badge_right - margin - 18),
-        min_scale=0.15,
+    margin = max(8, int(30 * scale))
+    _draw_background_tint(frame, 0.08)
+    _draw_shell(
+        frame, hand_count, privacy_label, sound_label,
+        "1 CHALLENGE   2 FREE PLAY   H HELP   D TECHNICAL VIEW   Q QUIT",
     )
 
-    title_y = max(42, int(height * 0.31))
-    title_scale = fit_text_scale(
-        "AIR RHYTHM",
-        max(40, int(width * 0.74)),
-        max(0.78, 2.05 * scale),
-        0.42,
-        max(2, int(3 * scale)),
-    )
     draw_text(
-        frame,
-        "AIR RHYTHM",
-        (center_x, title_y),
-        title_scale,
-        WHITE,
-        max(2, int(3 * scale)),
-        align="center",
-        max_width=max(40, int(width * 0.74)),
-    )
-    signal_y = min(height - 4, title_y + max(12, int(25 * scale)))
-    signal_half = max(20, int(width * (0.08 + 0.018 * pulse)))
-    cv2.line(
-        frame,
-        (center_x - signal_half, signal_y),
-        (center_x + signal_half, signal_y),
-        CYAN,
-        max(1, int(2 * scale)),
-        cv2.LINE_AA,
-    )
-
-    subtitle_y = signal_y + max(18, int(36 * scale))
-    draw_text(
-        frame,
-        "A PRIVATE PERFORMANCE STAGE FOR HAND-TRACKED MUSIC",
-        (center_x, subtitle_y),
-        max(0.29, 0.57 * scale),
-        CYAN,
-        1,
-        align="center",
-        max_width=max(40, int(width * 0.76)),
+        frame, "CAMERA READY  /  CHOOSE YOUR SET",
+        (center_x, int(height * 0.28)), max(0.25, 0.46 * scale),
+        CYAN, 1, align="center", max_width=max(60, int(width * 0.70)),
         min_scale=0.17,
     )
-    detail_y = subtitle_y + max(16, int(30 * scale))
+    heading = "MAKE THE MUSIC MOVE."
     draw_text(
-        frame,
-        "MediaPipe pretrained landmarks + custom gesture / collision logic",
-        (center_x, detail_y),
-        max(0.26, 0.45 * scale),
-        MUTED,
-        1,
-        align="center",
-        max_width=max(40, int(width * 0.76)),
+        frame, heading, (center_x, int(height * 0.40)),
+        fit_text_scale(
+            heading, max(90, int(width * 0.82)), max(0.8, 2.25 * scale),
+            0.40, max(2, int(3 * scale)), cv2.FONT_HERSHEY_DUPLEX,
+        ),
+        WHITE, max(2, int(3 * scale)), align="center",
+        max_width=max(90, int(width * 0.82)), font=cv2.FONT_HERSHEY_DUPLEX,
+    )
+    draw_text(
+        frame, "Touch falling circles with a fingertip.",
+        (center_x, int(height * 0.49)), max(0.27, 0.51 * scale),
+        MUTED, 1, align="center", max_width=max(70, int(width * 0.72)),
         min_scale=0.16,
     )
-
-    instruction_y = detail_y + max(23, int(37 * scale))
     draw_text(
-        frame,
-        "BRING BOTH HANDS INTO CAMERA VIEW",
-        (center_x, instruction_y),
-        max(0.43, 0.61 * scale),
-        WHITE,
-        1,
-        align="center",
-        max_width=max(40, int(width * 0.76)),
-        min_scale=0.17,
+        frame, "Move down or toward the camera for a stronger hit.",
+        (center_x, int(height * 0.54)), max(0.26, 0.47 * scale),
+        MUTED, 1, align="center", max_width=max(70, int(width * 0.72)),
+        min_scale=0.16,
     )
-    aim_y = instruction_y + max(18, int(31 * scale))
     draw_text(
-        frame,
-        "HIT FALLING CIRCLES WITH YOUR INDEX FINGERTIPS",
-        (center_x, aim_y),
-        max(0.40, 0.55 * scale),
-        MUTED,
-        1,
-        align="center",
-        max_width=max(40, int(width * 0.76)),
+        frame, "BRING BOTH HANDS INTO CAMERA VIEW",
+        (center_x, int(height * 0.59)), max(0.24, 0.38 * scale),
+        WHITE, 1, align="center", max_width=max(60, int(width * 0.60)),
         min_scale=0.16,
     )
 
     progress = None if ready_progress is None else _clamp01(ready_progress)
     ready = progress is None or progress >= 1.0
-    action = "SPACE  START CHALLENGE" if ready else "PREPARING LANDMARK INPUT"
-    action_color = GREEN if ready else GOLD
-    action_width = min(max(150, int(320 * scale)), max(80, int(width * 0.60)))
-    action_height = max(28, int(54 * scale))
-    action_top = min(
-        height - action_height - margin,
-        aim_y + max(20, int(35 * scale)),
-    )
-    action_left = max(margin, center_x - action_width // 2)
-    action_right = min(width - margin, action_left + action_width)
-    draw_glass_panel(
-        frame,
-        (action_left, action_top),
-        (action_right, action_top + action_height),
-        accent=action_color,
-        alpha=0.62,
-        radius=action_height // 2,
-    )
+    button_height = max(28, int(52 * scale))
+    button_gap = max(6, int(12 * scale))
+    primary_width = max(130, int(305 * scale))
+    secondary_width = max(88, int(135 * scale))
+    total_width = min(width - margin * 2, primary_width + secondary_width + button_gap)
+    primary_width = min(primary_width, total_width - button_gap - secondary_width)
+    button_left = max(margin, center_x - total_width // 2)
+    button_top = int(height * 0.64)
+    primary = (button_left, button_top, button_left + primary_width, button_top + button_height)
+    _filled_round_rect(frame, primary, CYAN if ready else GOLD, max(6, int(12 * scale)))
+    _outline_round_rect(frame, primary, WHITE if ready else GOLD, max(6, int(12 * scale)))
     draw_text(
-        frame,
-        action,
-        (center_x, action_top + action_height - max(8, int(15 * scale))),
-        max(0.27, 0.48 * scale),
-        action_color,
-        1,
-        align="center",
-        max_width=max(35, action_right - action_left - 20),
-        min_scale=0.16,
+        frame, "SPACE  START SONG" if ready else "PREPARING INPUT",
+        ((primary[0] + primary[2]) // 2, button_top + button_height // 2 + max(4, int(6 * scale))),
+        max(0.22, 0.44 * scale), TEXT_SHADOW, 2, align="center",
+        max_width=max(40, primary_width - 14), min_scale=0.16,
+    )
+    secondary_left = primary[2] + button_gap
+    secondary = (
+        secondary_left, button_top, secondary_left + secondary_width,
+        button_top + button_height,
+    )
+    _filled_round_rect(frame, secondary, PANEL, max(6, int(12 * scale)))
+    _outline_round_rect(frame, secondary, PANEL_LIGHT, max(6, int(12 * scale)))
+    draw_text(
+        frame, "2  FREE PLAY",
+        ((secondary[0] + secondary[2]) // 2, button_top + button_height // 2 + max(4, int(6 * scale))),
+        max(0.20, 0.39 * scale), WHITE, 1, align="center",
+        max_width=max(30, secondary_width - 10), min_scale=0.15,
     )
     if progress is not None and not ready:
         _draw_progress_bar(
-            frame,
-            action_left + max(10, int(18 * scale)),
-            action_top + action_height - max(7, int(12 * scale)),
-            action_right - max(10, int(18 * scale)),
-            action_top + action_height - max(4, int(7 * scale)),
-            progress,
+            frame, primary[0] + 8, primary[3] - 5,
+            primary[2] - 8, primary[3] - 3, progress,
         )
 
-    status = (
-        f"INPUT {str(privacy_label).upper()}  |  "
-        f"HANDS {max(0, _safe_int(hand_count))}/2  |  {str(sound_label).upper()}"
-    )
-    status_y = min(height - max(20, int(48 * scale)), action_top + action_height + max(21, int(39 * scale)))
     draw_text(
-        frame,
-        status,
-        (center_x, status_y),
-        max(0.22, 0.37 * scale),
-        MUTED,
-        1,
-        align="center",
-        max_width=max(40, int(width * 0.72)),
+        frame, "A short, hand-played version of Fur Elise",
+        (center_x, int(height * 0.76)), max(0.22, 0.36 * scale),
+        MUTED, 1, align="center", max_width=max(70, int(width * 0.67)),
         min_scale=0.15,
     )
-    controls = "1 Challenge   2 Free play   B Benchmark   D Technical view   Q Quit"
-    draw_text(
-        frame,
-        controls,
-        (margin, height - margin),
-        max(0.20, 0.34 * scale),
-        MUTED,
-        1,
-        max_width=max(45, int(width * 0.54)),
-        min_scale=0.14,
-    )
+    if width >= 1000:
+        draw_text(
+            frame, "MediaPipe pretrained landmarks + custom gesture / collision logic",
+            (center_x, int(height * 0.82)), max(0.20, 0.32 * scale),
+            MUTED, 1, align="center", max_width=max(90, int(width * 0.55)),
+            min_scale=0.15,
+        )
     return frame
 
 
@@ -539,8 +515,6 @@ def _draw_progress_bar(
     filled_right = left + round((right - left) * progress)
     if filled_right > left:
         cv2.rectangle(frame, (left, top), (filled_right, bottom), CYAN, -1, cv2.LINE_AA)
-    marker_x = max(left, min(right, filled_right))
-    cv2.circle(frame, (marker_x, (top + bottom) // 2), max(2, bottom - top), WHITE, -1, cv2.LINE_AA)
 
 
 def draw_game_hud(
@@ -557,133 +531,78 @@ def draw_game_hud(
     sound_label: str,
     debug_info: Mapping[str, Any] | None = None,
 ) -> Any:
-    """Draw a quiet top rail, leaving most of the stage open for movement."""
+    """Draw the browser-style compact HUD at the upper left of the stage."""
     width, height = _frame_size(frame)
     scale = _ui_scale(frame)
-    margin = max(5, int(14 * scale))
-    rail_top = margin
-    rail_bottom = min(height - margin - 1, rail_top + max(42, int(66 * scale)))
+    margin = max(8, int(30 * scale))
+    _draw_shell(
+        frame, hands, privacy_label, sound_label,
+        "1 CHALLENGE   2 FREE PLAY   H HELP   M MUTE   T MENU   B BENCHMARK",
+    )
+    left = margin
+    top = max(margin + max(28, int(42 * scale)), int(height * 0.11))
+    card_width = min(width - margin * 2, int(width * 0.43), int(440 * max(0.75, scale)))
+    right = min(width - margin, left + max(170, card_width))
+    bottom = min(height - margin, top + max(86, int(158 * scale)))
     draw_glass_panel(
-        frame,
-        (margin, rail_top),
-        (width - margin, rail_bottom),
-        accent=CYAN,
-        alpha=0.48,
-        radius=max(10, int(20 * scale)),
+        frame, (left, top), (right, bottom), accent=None,
+        alpha=0.88, radius=max(8, int(16 * scale)),
+    )
+    pad = max(8, int(16 * scale))
+    inside_left = left + pad
+    inside_right = right - pad
+    available = max(45, inside_right - inside_left)
+    header_y = top + max(15, int(22 * scale))
+    draw_text(
+        frame, str(mode_label).upper(), (inside_left, header_y),
+        max(0.22, 0.39 * scale), CYAN, 1,
+        max_width=max(40, int(available * 0.42)), min_scale=0.15,
+    )
+    draw_text(
+        frame, str(song_label).upper(), (inside_right, header_y),
+        max(0.22, 0.39 * scale), WHITE, 1, align="right",
+        max_width=max(40, int(available * 0.53)), min_scale=0.15,
     )
 
-    pad = max(7, int(14 * scale))
-    first_line = rail_top + max(13, int(22 * scale))
-    second_line = rail_bottom - max(7, int(13 * scale))
-    left_right = min(width - margin, margin + max(135, int(width * 0.27)))
-    right_left = max(left_right + max(8, int(16 * scale)), width - margin - max(135, int(width * 0.23)))
-    center_left = left_right + max(7, int(14 * scale))
-    center_right = max(center_left + 1, right_left - max(7, int(14 * scale)))
+    stats = (
+        ("SCORE", f"{max(0, _safe_int(score)):,}"),
+        ("COMBO", str(max(0, _safe_int(combo)))),
+        ("HITS", str(max(0, _safe_int(hits)))),
+        ("MISSES", str(max(0, _safe_int(misses)))),
+    )
+    column_width = available / 4
+    label_y = top + max(30, int(53 * scale))
+    value_y = top + max(49, int(80 * scale))
+    for index, (label, value) in enumerate(stats):
+        x = round(inside_left + index * column_width)
+        draw_text(
+            frame, label, (x, label_y), max(0.19, 0.30 * scale),
+            MUTED, 1, max_width=max(25, int(column_width - 6)), min_scale=0.13,
+        )
+        draw_text(
+            frame, value, (x, value_y), max(0.33, 0.72 * scale),
+            WHITE, max(1, int(2 * scale)),
+            max_width=max(25, int(column_width - 6)), min_scale=0.17,
+        )
 
-    draw_text(
-        frame,
-        "SCORE",
-        (margin + pad, first_line),
-        max(0.22, 0.34 * scale),
-        MUTED,
-        1,
-    )
-    draw_text(
-        frame,
-        f"{max(0, _safe_int(score)):,}",
-        (margin + pad, second_line),
-        max(0.37, 0.67 * scale),
-        WHITE,
-        max(1, int(2 * scale)),
-        max_width=max(30, left_right - margin - pad * 2),
-        min_scale=0.20,
-    )
-    draw_text(
-        frame,
-        f"x{max(0, _safe_int(combo))}",
-        (left_right - pad, second_line),
-        max(0.28, 0.45 * scale),
-        GOLD if _safe_int(combo) else MUTED,
-        1,
-        align="right",
-        max_width=max(25, int(width * 0.09)),
-        min_scale=0.16,
-    )
-
-    center_x = (center_left + center_right) // 2
-    center_width = max(30, center_right - center_left)
-    draw_text(
-        frame,
-        f"{str(mode_label).upper()}  /  {song_label}",
-        (center_x, first_line),
-        max(0.22, 0.38 * scale),
-        WHITE,
-        1,
-        align="center",
-        max_width=center_width,
-        min_scale=0.15,
-    )
+    progress_top = top + max(58, int(103 * scale))
     _draw_progress_bar(
-        frame,
-        center_left,
-        max(first_line + 4, second_line - max(5, int(8 * scale))),
-        center_right,
-        max(first_line + 7, second_line - max(2, int(4 * scale))),
-        progress,
+        frame, inside_left, progress_top, inside_right,
+        progress_top + max(2, int(4 * scale)), progress,
     )
-
-    right_width = max(30, width - margin - right_left - pad)
+    guide_y = min(bottom - max(7, int(12 * scale)), progress_top + max(16, int(25 * scale)))
     draw_text(
-        frame,
-        f"HANDS {max(0, _safe_int(hands))}/2",
-        (right_left, first_line),
-        max(0.22, 0.34 * scale),
-        GREEN if _safe_int(hands) else MUTED,
-        1,
-        max_width=right_width,
-        min_scale=0.15,
-    )
-    draw_text(
-        frame,
-        f"{max(0, _safe_int(hits))} HIT  |  {max(0, _safe_int(misses))} MISS",
-        (right_left, second_line),
-        max(0.22, 0.36 * scale),
-        WHITE,
-        1,
-        max_width=right_width,
-        min_scale=0.15,
-    )
-
-    footer_height = max(24, int(36 * scale))
-    footer_top = max(rail_bottom + 3, height - margin - footer_height)
-    footer_right = min(width - margin, margin + max(155, int(width * 0.54)))
-    draw_glass_panel(
-        frame,
-        (margin, footer_top),
-        (footer_right, height - margin),
-        accent=None,
-        alpha=0.42,
-        radius=footer_height // 2,
-    )
-    footer_text = f"{mode_label} | Input {privacy_label} | {sound_label} | H Help"
-    draw_text(
-        frame,
-        footer_text,
-        (margin + pad, height - margin - max(6, int(10 * scale))),
-        max(0.19, 0.31 * scale),
-        MUTED,
-        1,
-        max_width=max(50, footer_right - margin - pad * 2),
-        min_scale=0.14,
+        frame, "Touch circles with a fingertip. Follow note order for the best score.",
+        (inside_left, guide_y), max(0.19, 0.31 * scale),
+        MUTED, 1, max_width=available, min_scale=0.13,
     )
 
     if debug_info is not None:
         combined_debug = dict(debug_info)
         combined_debug.setdefault("hands", hands)
         draw_debug_overlay(
-            frame,
-            combined_debug,
-            top_offset=rail_bottom + max(4, int(10 * scale)),
+            frame, combined_debug,
+            top_offset=bottom + max(6, int(12 * scale)),
         )
     return frame
 
@@ -694,35 +613,77 @@ def draw_countdown(
     progress: float = 0.0,
     current_time: float = 0.0,
 ) -> Any:
-    """Draw a glowing countdown number or GO message in the centre."""
+    """Show a large browser-style countdown without a target-like ring."""
     width, height = _frame_size(frame)
     scale = _ui_scale(frame)
-    center = (width // 2, height // 2)
-    text = str(value)
-    if text.strip() == "":
+    text = str(value).strip()
+    if not text:
         return frame
-    is_go = text.upper().startswith("GO")
-    color = GREEN if is_go else CYAN
-    time_value = float(current_time) if isinstance(current_time, (int, float)) else 0.0
-    pulse = 0.5 + 0.5 * math.sin(time_value * 7.0) if math.isfinite(time_value) else 0.5
-    ring_radius = max(25, int(min(width, height) * (0.11 + pulse * 0.01)))
-    draw_glow_circle(frame, center, ring_radius, color, pulse)
-    ring_progress = _clamp01(progress)
-    if ring_progress > 0:
-        cv2.ellipse(
-            frame, center, (ring_radius + 8, ring_radius + 8), -90,
-            0, 360 * ring_progress, WHITE, max(2, int(4 * scale)), cv2.LINE_AA,
-        )
-    text_scale = fit_text_scale(
-        text, ring_radius * 2 - 12, max(0.9, (1.8 if is_go else 2.4) * scale),
-        0.45, max(2, int(4 * scale)),
+    color = GREEN if text.upper().startswith("GO") else WHITE
+    chosen = fit_text_scale(
+        text, max(30, int(width * 0.55)), max(1.4, 5.2 * scale),
+        0.55, max(3, int(5 * scale)), cv2.FONT_HERSHEY_DUPLEX,
     )
-    text_height = cv2.getTextSize(text, FONT, text_scale, max(2, int(4 * scale)))[0][1]
+    thickness = max(3, int(5 * scale))
+    (text_width, text_height), _ = cv2.getTextSize(
+        text, cv2.FONT_HERSHEY_DUPLEX, chosen, thickness,
+    )
+    center_x = width // 2
+    baseline_y = int(height * 0.46) + text_height // 2
+    origin = (max(0, center_x - text_width // 2), baseline_y)
+    glow = frame.copy()
+    cv2.putText(
+        glow, text, origin, cv2.FONT_HERSHEY_DUPLEX, chosen,
+        CYAN if color == WHITE else GREEN, thickness + max(5, int(15 * scale)),
+        cv2.LINE_AA,
+    )
+    cv2.addWeighted(glow, 0.20, frame, 0.80, 0, frame)
+    cv2.putText(
+        frame, text, origin, cv2.FONT_HERSHEY_DUPLEX, chosen,
+        color, thickness, cv2.LINE_AA,
+    )
+    return frame
+
+
+def draw_tracking_warning(
+    frame,
+    inset_bounds: tuple[int, int, int, int],
+) -> Any:
+    """Place the same wrist-framing hint above the live camera inset."""
+    width, height = _frame_size(frame)
+    scale = _ui_scale(frame)
+    _, inset_top, inset_right, _ = inset_bounds
+    margin = max(5, int(12 * scale))
+    card_width = min(width - margin * 2, max(int(305 * scale), int(width * 0.26)))
+    card_height = max(43, int(62 * scale))
+    bottom = max(margin + card_height, inset_top - max(5, int(10 * scale)))
+    left = max(margin, inset_right - card_width)
+    right = min(width - margin, left + card_width)
+    top = max(margin, bottom - card_height)
+    draw_glass_panel(
+        frame, (left, top), (right, bottom),
+        accent=GOLD, alpha=0.96, radius=max(5, int(11 * scale)),
+    )
+    icon_x = left + max(12, int(18 * scale))
+    icon_y = (top + bottom) // 2
+    icon_radius = max(7, int(11 * scale))
+    cv2.circle(frame, (icon_x, icon_y), icon_radius, GOLD, -1, cv2.LINE_AA)
     draw_text(
-        frame, text, (center[0], center[1] + text_height // 2), text_scale,
-        color, max(2, int(4 * scale)), align="center",
-        max_width=max(15, ring_radius * 2 - 12), min_scale=0.4,
+        frame, "!", (icon_x, icon_y + max(4, int(5 * scale))),
+        max(0.24, 0.43 * scale), TEXT_SHADOW, 2, align="center",
+        max_width=icon_radius * 2, min_scale=0.20,
     )
+    message_x = left + max(28, int(36 * scale))
+    message_width = max(30, right - message_x - max(5, int(9 * scale)))
+    for line, baseline in (
+        ("Keep your whole hand and wrist", icon_y - max(2, int(4 * scale))),
+        ("visible in the camera.", icon_y + max(9, int(13 * scale))),
+    ):
+        draw_text(
+            frame, line, (message_x, baseline),
+            max(0.29, 0.39 * scale), GOLD, 1,
+            max_width=message_width, min_scale=0.22,
+        )
     return frame
 
 
@@ -823,149 +784,95 @@ def draw_results(
     basic_hits: int = 0,
     song_label: str = "Song challenge",
     replay_hint: str = "Press R to replay",
+    hand_count: int = 0,
+    privacy_label: str = "Camera",
+    sound_label: str = "Sound on",
 ) -> Any:
-    """Draw a compact end-of-song summary without covering the stage."""
+    """Draw the browser's open, centered end-of-song summary."""
     width, height = _frame_size(frame)
     scale = _ui_scale(frame)
-    _draw_background_tint(frame, 0.22)
-    margin = max(6, int(18 * scale))
-    panel_left = max(margin, int(width * 0.10))
-    panel_right_ratio = 0.64 if width >= 800 else 0.88
-    panel_right = min(width - margin, int(width * panel_right_ratio))
-    panel_top = max(margin, int(height * 0.16))
-    panel_bottom = min(height - margin, int(height * 0.82))
-    draw_glass_panel(
-        frame,
-        (panel_left, panel_top),
-        (panel_right, panel_bottom),
-        accent=GREEN,
-        alpha=0.63,
-        radius=max(12, int(26 * scale)),
+    center_x = width // 2
+    _draw_background_tint(frame, 0.16)
+    _draw_shell(
+        frame, hand_count, privacy_label, sound_label,
+        "R / SPACE REPLAY   T TITLE   H HELP   Q QUIT",
     )
-
-    center_x = (panel_left + panel_right) // 2
-    available = max(40, panel_right - panel_left - max(22, int(48 * scale)))
-    title_y = panel_top + max(21, int(39 * scale))
-    draw_text(
-        frame,
-        "PERFORMANCE COMPLETE",
-        (center_x, title_y),
-        max(0.31, 0.58 * scale),
-        CYAN,
-        max(1, int(2 * scale)),
-        align="center",
-        max_width=available,
-        min_scale=0.19,
-    )
-    song_y = title_y + max(18, int(31 * scale))
-    draw_text(
-        frame,
-        song_label,
-        (center_x, song_y),
-        max(0.23, 0.38 * scale),
-        MUTED,
-        1,
-        align="center",
-        max_width=available,
-        min_scale=0.15,
-    )
-
-    completion_value = 0.0
     try:
         completion_value = float(completion)
     except (TypeError, ValueError):
-        pass
+        completion_value = 0.0
     if not math.isfinite(completion_value):
         completion_value = 0.0
     completion_value = max(0.0, min(100.0, completion_value))
-    rank_text = str(rank).upper()[:3] or "-"
-    rank_y = song_y + max(39, int(84 * scale))
+
     draw_text(
-        frame,
-        rank_text,
-        (center_x, rank_y),
-        fit_text_scale(rank_text, max(35, int(available * 0.30)), max(1.2, 2.55 * scale), 0.7, max(3, int(5 * scale))),
-        GREEN,
-        max(3, int(5 * scale)),
-        align="center",
-        max_width=available,
+        frame, "SONG COMPLETE", (center_x, int(height * 0.28)),
+        max(0.28, 0.48 * scale), CYAN, 1, align="center",
+        max_width=max(60, int(width * 0.66)), min_scale=0.17,
+    )
+    rank_text = f"RANK {str(rank).upper()[:3] or '-'}"
+    draw_text(
+        frame, rank_text, (center_x, int(height * 0.43)),
+        fit_text_scale(
+            rank_text, max(70, int(width * 0.68)),
+            max(1.0, 2.8 * scale), 0.42, max(2, int(4 * scale)),
+            cv2.FONT_HERSHEY_DUPLEX,
+        ),
+        WHITE, max(2, int(4 * scale)), align="center",
+        max_width=max(70, int(width * 0.68)), font=cv2.FONT_HERSHEY_DUPLEX,
+    )
+    draw_text(
+        frame, f"{max(0, _safe_int(score)):,} POINTS",
+        (center_x, int(height * 0.52)), max(0.46, 0.90 * scale),
+        CYAN, max(1, int(2 * scale)), align="center",
+        max_width=max(55, int(width * 0.64)), min_scale=0.22,
+    )
+    caught = sum(max(0, _safe_int(value)) for value in (perfect, great, good, basic_hits))
+    detail = (
+        f"{caught} CIRCLES CAUGHT  |  {completion_value:.0f}% COMPLETION  |  "
+        f"BEST COMBO {max(0, _safe_int(max_combo))}"
+    )
+    draw_text(
+        frame, detail, (center_x, int(height * 0.60)),
+        max(0.22, 0.38 * scale), MUTED, 1, align="center",
+        max_width=max(70, int(width * 0.76)), min_scale=0.15,
     )
     draw_text(
         frame,
-        "FINAL RANK",
-        (center_x, rank_y + max(17, int(28 * scale))),
-        max(0.21, 0.32 * scale),
-        MUTED,
-        1,
-        align="center",
-        max_width=available,
-        min_scale=0.14,
+        f"PERFECT {max(0, _safe_int(perfect))}   GREAT {max(0, _safe_int(great))}   "
+        f"GOOD {max(0, _safe_int(good))}   MISS {max(0, _safe_int(misses))}",
+        (center_x, int(height * 0.65)),
+        max(0.20, 0.33 * scale), GOLD, 1, align="center",
+        max_width=max(70, int(width * 0.74)), min_scale=0.14,
     )
 
-    summary_y = rank_y + max(47, int(83 * scale))
+    button_height = max(27, int(51 * scale))
+    button_top = int(height * 0.72)
+    primary_width = max(130, int(250 * scale))
+    secondary_width = max(95, int(150 * scale))
+    gap = max(6, int(12 * scale))
+    left = max(5, center_x - (primary_width + secondary_width + gap) // 2)
+    primary = (left, button_top, left + primary_width, button_top + button_height)
+    secondary = (
+        primary[2] + gap, button_top,
+        min(width - 5, primary[2] + gap + secondary_width),
+        button_top + button_height,
+    )
+    _filled_round_rect(frame, primary, CYAN, max(6, int(12 * scale)))
+    _outline_round_rect(frame, primary, WHITE, max(6, int(12 * scale)))
     draw_text(
-        frame,
-        f"{max(0, _safe_int(score)):,}",
-        (center_x, summary_y),
-        max(0.46, 0.82 * scale),
-        WHITE,
-        max(1, int(2 * scale)),
-        align="center",
-        max_width=available,
-        min_scale=0.24,
+        frame, "R / SPACE  PLAY AGAIN",
+        ((primary[0] + primary[2]) // 2, button_top + button_height // 2 + max(4, int(6 * scale))),
+        max(0.22, 0.40 * scale), TEXT_SHADOW, 2, align="center",
+        max_width=max(30, primary_width - 10), min_scale=0.15,
     )
+    _filled_round_rect(frame, secondary, PANEL, max(6, int(12 * scale)))
+    _outline_round_rect(frame, secondary, PANEL_LIGHT, max(6, int(12 * scale)))
     draw_text(
-        frame,
-        f"SCORE  |  COMPLETION {completion_value:.1f}%  |  BEST COMBO x{max(0, _safe_int(max_combo))}",
-        (center_x, summary_y + max(18, int(32 * scale))),
-        max(0.20, 0.33 * scale),
-        MUTED,
-        1,
-        align="center",
-        max_width=available,
-        min_scale=0.14,
-    )
-
-    stats_y = summary_y + max(43, int(74 * scale))
-    stats = (
-        f"PERFECT {max(0, _safe_int(perfect))}   |   "
-        f"GREAT {max(0, _safe_int(great))}   |   "
-        f"GOOD {max(0, _safe_int(good))}   |   "
-        f"HIT {max(0, _safe_int(basic_hits))}   |   "
-        f"MISS {max(0, _safe_int(misses))}"
-    )
-    draw_text(
-        frame,
-        stats,
-        (center_x, stats_y),
-        max(0.20, 0.34 * scale),
-        GOLD,
-        1,
-        align="center",
-        max_width=available,
-        min_scale=0.14,
-    )
-    meter_left = panel_left + max(18, int(42 * scale))
-    meter_right = panel_right - max(18, int(42 * scale))
-    meter_top = min(panel_bottom - max(27, int(52 * scale)), stats_y + max(9, int(17 * scale)))
-    _draw_progress_bar(
-        frame,
-        meter_left,
-        meter_top,
-        meter_right,
-        meter_top + max(3, int(5 * scale)),
-        completion_value / 100.0,
-    )
-    draw_text(
-        frame,
-        replay_hint,
-        (center_x, panel_bottom - max(9, int(18 * scale))),
-        max(0.21, 0.36 * scale),
-        GREEN,
-        1,
-        align="center",
-        max_width=available,
-        min_scale=0.15,
+        frame, "T  BACK TO MENU",
+        ((secondary[0] + secondary[2]) // 2, button_top + button_height // 2 + max(4, int(6 * scale))),
+        max(0.20, 0.34 * scale), WHITE, 1, align="center",
+        max_width=max(30, secondary[2] - secondary[0] - 10), min_scale=0.15,
     )
     return frame
 
@@ -977,24 +884,24 @@ def draw_help_overlay(
     """Draw a compact control guide that pauses the active round safely."""
     width, height = _frame_size(frame)
     scale = _ui_scale(frame)
-    _draw_background_tint(frame, 0.57)
-    left = max(5, int(width * 0.19))
-    right = min(width - 6, int(width * 0.81))
+    _draw_background_tint(frame, 0.66)
+    left = max(5, int(width * 0.23))
+    right = min(width - 6, int(width * 0.77))
     top = max(5, int(height * 0.15))
     bottom = min(height - 6, int(height * 0.85))
     draw_glass_panel(
         frame,
         (left, top),
         (right, bottom),
-        accent=CYAN,
-        alpha=0.78,
+        accent=None,
+        alpha=0.94,
         radius=max(12, int(26 * scale)),
     )
     center_x = width // 2
     available = max(25, right - left - max(20, int(50 * scale)))
     heading_y = top + max(20, int(40 * scale))
     draw_text(
-        frame, "QUICK GUIDE", (center_x, heading_y), max(0.37, 0.66 * scale),
+        frame, "PAUSED / HOW TO PLAY", (center_x, heading_y), max(0.37, 0.66 * scale),
         CYAN, max(1, int(2 * scale)), align="center", max_width=available, min_scale=0.22,
     )
     guide_y = heading_y + max(18, int(32 * scale))
@@ -1034,7 +941,7 @@ def draw_help_overlay(
             key_x = column_left + max(7, int(13 * scale))
             action_x = column_left + max(58, int(100 * scale))
             draw_text(
-                frame, str(key), (key_x, y), row_scale, GOLD, 1,
+                frame, str(key), (key_x, y), row_scale, CYAN, 1,
                 max_width=max(25, action_x - key_x - 8), min_scale=0.14,
             )
             draw_text(
@@ -1052,7 +959,7 @@ def draw_help_overlay(
                 )
     draw_text(
         frame, "H  RESUME PERFORMANCE", (center_x, bottom - max(7, int(18 * scale))),
-        max(0.27, 0.44 * scale), GREEN, 1, align="center",
+        max(0.27, 0.44 * scale), CYAN, 1, align="center",
         max_width=available, min_scale=0.17,
     )
     return frame
@@ -1193,6 +1100,7 @@ __all__ = [
     "draw_help_overlay",
     "draw_results",
     "draw_text",
+    "draw_tracking_warning",
     "draw_title_screen",
     "fit_text_scale",
 ]

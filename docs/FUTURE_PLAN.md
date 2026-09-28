@@ -10,11 +10,12 @@ Releasing a complete commercial game is not the current goal.
 
 The project already uses:
 
-- OpenCV for webcam capture, frame processing, drawing, and the live interface.
+- Python OpenCV for desktop webcam capture and frame processing; OpenCV.js for browser frame preparation.
+- A shared HTML/CSS/Canvas interface that draws the performance stage and live-input inset in both versions.
 - MediaPipe's pretrained Hand Landmarker for 21 landmarks on each detected hand.
 - Landmark history for fingertip movement and direction estimates.
 - Path-based collision so fast motion between frames can still hit a node.
-- A timed rhythm challenge, scoring, synthesised audio, and privacy views.
+- A timed rhythm challenge, scoring, and synthesised audio in both versions; optional privacy views in the desktop app.
 - A person-free performance stage with virtual drumsticks driven by hand landmarks.
 - A portfolio interface with title, gameplay HUD, help, results, a live camera-and-skeleton inset, and technical telemetry.
 
@@ -99,13 +100,13 @@ Plans are ranked by career and learning value:
 - Baseline: 15.03 average FPS from a 77.20-second run with 1920×1080 captured frames and a 1920×1200 generated stage.
 - First optimisation: two 1280×720 runs measured 16.04 and 16.59 average FPS; rendering improved, but serial camera waiting still dominated the loop.
 - Final 64.67-second run: 30.39 average FPS, zero estimated dropped frames, 20.12 ms average complete-frame time, and 9.48 ms average frame-start-to-audio-request time across 70 hit frames.
-- Background latest-frame capture was the decisive architecture change; the full comparison and limitations are documented in `docs/PERFORMANCE_STUDY.md`.
+- Background latest-frame capture was the decisive architecture change; the full comparison and limitations are documented in [Performance Study](PERFORMANCE_STUDY.md).
 - Manual low-hand-position testing found the adaptive filter smoother, with residual edge-of-frame vibration retained as a documented limitation rather than hidden by input-delaying over-smoothing.
 
 ### Evidence lifecycle
 
 - Raw JSON and Markdown measurements were kept temporarily in the repository-local, ignored `benchmark_reports/` directory.
-- The methodology, bottlenecks, architecture changes, before/after table, and conclusions are consolidated in `docs/PERFORMANCE_STUDY.md`.
+- The methodology, bottlenecks, architecture changes, before/after table, and conclusions are consolidated in [Performance Study](PERFORMANCE_STUDY.md).
 - Raw benchmark files are deleted after consolidation so temporary evidence does not accumulate outside the maintained study.
 
 ### Definition of Done
@@ -236,9 +237,10 @@ This will add original ML work while MediaPipe continues to provide the raw hand
 
 ## Desktop visual parity with the browser
 
-**Status:** Implemented on a separate branch with camera-free tests; live-camera review is still pending before merging.
+**Status:** A native desktop window now loads the shared web interface. Automated native-window checks use synthetic input; live-camera review is still pending before merging.
 
-- The desktop title, gameplay HUD, notes, countdown, results, and wrist-framing hint now use the browser's black-sky visual language.
+- Both versions use the same HTML/CSS, text, menus, status badges, HUD, results, note graphics, and input inset. UI resolution is independent of camera resolution.
+- Python retains desktop capture, MediaPipe inference, filtering, collision, scoring, and audio. A latest-state bridge drives the native window.
 - The desktop camera inset, hand skeleton, gameplay timing, and benchmark controls remain intact.
 - Compare both versions during a live session at the showcase resolution before calling the visual pass complete.
 

@@ -6,6 +6,8 @@ This study explains how Air Rhythm's real-time computer-vision pipeline was meas
 
 The benchmark stores timing numbers, environment details, and counters only. It does not save camera images or hand-landmark coordinates.
 
+**Renderer scope:** The measurements below were collected with an earlier OpenCV-drawn display. That renderer is no longer shipped; the current desktop window uses the shared HTML/CSS/Canvas interface. Current reports measure Python state/inset preparation separately from native browser painting. These historical numbers document the camera-pipeline improvement, not the current window's display speed or a browser benchmark.
+
 ## Result at a glance
 
 The final 64.67-second run processed 1,940 frames at the 30 FPS camera target. It reached 30.39 reported average FPS with zero estimated dropped frames. The original 77.20-second baseline reached 15.03 average FPS and estimated 593 dropped frames.
@@ -130,4 +132,4 @@ Three engineering lessons came from the measurements:
 2. Lowering resolution helps only the pixel-heavy stages. It improved rendering but could not solve a blocking architecture.
 3. Real-time input should favour fresh data over queued data. Background latest-frame capture removed the serial wait while avoiding stale-camera latency.
 
-The current pipeline meets its 30 FPS showcase target on the documented machine and camera configuration. The next evidence-focused task is a repeatable computer-vision robustness matrix covering lighting, backgrounds, one and two hands, crossed hands, partial occlusion, camera-edge positions, and recovery after detection loss.
+The measured OpenCV-display pipeline met its 30 FPS showcase target on the documented machine and camera configuration. The shared desktop window needs its own live-camera benchmark before making the same performance claim. The next evidence-focused task is a repeatable computer-vision robustness matrix covering lighting, backgrounds, one and two hands, crossed hands, partial occlusion, camera-edge positions, and recovery after detection loss.

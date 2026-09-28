@@ -3,32 +3,26 @@
 import unittest
 from unittest.mock import Mock, patch
 
-import numpy as np
-
 from app import (
     CHALLENGE_TARGET_HEIGHT_RATIO,
     FallingNode,
     FingertipMotion,
-    HitEffect,
     NodeHit,
     challenge_node_y,
     create_challenge_node,
-    draw_falling_nodes,
-    draw_hit_effects,
     node_radius_for_frame,
     play_node_hits,
     run_sound_test,
     update_challenge_nodes,
     update_falling_nodes,
 )
-from music import INSTRUMENTS, MELODY_NOTES, MelodyPlayer
+from music import INSTRUMENTS
 from rhythm_game import ChartEvent, RhythmRound, RoundPhase, TimingGrade
 
 
 class HitAudioTests(unittest.TestCase):
     def setUp(self):
         self.audio = Mock()
-        self.melody = MelodyPlayer()
 
     def node(self, instrument=INSTRUMENTS[0], y=200):
         return FallingNode(
@@ -36,76 +30,68 @@ class HitAudioTests(unittest.TestCase):
             color=instrument.color, instrument=instrument.key,
         )
 
-    def test_hit_feedback_is_text_only_without_an_extra_target_ring(self):
-        frame = np.zeros((480, 768, 3), dtype=np.uint8)
-        effect = HitEffect((380, 220), (255, 137, 44), 1.0, "GREAT", "ON BEAT")
-        with patch("app.ui.draw_glow_circle") as glow:
-            draw_hit_effects(frame, [effect], 1.1)
-        glow.assert_not_called()
-        self.assertTrue(np.any(frame))
-
-    def test_stationary_contact_plays_once_and_removes_node(self):
+    def test_stationary_contact_plays_once_and_removes_free_play_node(self):
         motion = FingertipMotion((200, 200), (200, 200), 0, None)
         remaining, hits, misses = update_falling_nodes(
             [self.node()], 0.03, [motion], 720
         )
-        play_node_hits(hits, self.audio, self.melody, True)
+        play_node_hits(hits, self.audio)
         self.assertEqual((len(remaining), len(hits), misses), (0, 1, 0))
         self.assertEqual(hits[0].rating, "GOOD")
         self.audio.play_note.assert_called_once_with(
-            MELODY_NOTES[0], instrument="keys", velocity=0.75
+            INSTRUMENTS[0].freestyle_note, instrument="keys", velocity=0.75
         )
         _, next_hits, _ = update_falling_nodes(remaining, 0.03, [motion], 720)
-        play_node_hits(next_hits, self.audio, self.melody, True)
+        play_node_hits(next_hits, self.audio)
         self.assertEqual(self.audio.play_note.call_count, 1)
 
     def test_fast_sweep_plays_even_when_endpoints_miss(self):
         motion = FingertipMotion((80, 200), (320, 200), 1.0, None)
         _, hits, _ = update_falling_nodes([self.node()], 0.03, [motion], 720)
-        play_node_hits(hits, self.audio, self.melody, True)
+        play_node_hits(hits, self.audio)
         self.assertEqual(hits[0].rating, "PERFECT")
         self.audio.play_note.assert_called_once_with(
-            MELODY_NOTES[0], instrument="keys", velocity=1.0
+            INSTRUMENTS[0].freestyle_note, instrument="keys", velocity=1.0
         )
 
-    def test_misses_are_silent_and_keep_next_melody_note(self):
+    def test_misses_are_silent(self):
         remaining, hits, misses = update_falling_nodes(
             [self.node(y=800)], 0.03, [], 720
         )
-        play_node_hits(hits, self.audio, self.melody, True)
+        play_node_hits(hits, self.audio)
         self.assertEqual((remaining, misses), ([], 1))
-        self.assertEqual(self.melody.position, 0)
         self.audio.play_note.assert_not_called()
 
-    def test_simultaneous_hits_share_one_step_then_next_hit_advances(self):
+    def test_simultaneous_free_play_hits_use_each_instrument_pitch(self):
         hits = [NodeHit(self.node(instrument), "GOOD") for instrument in INSTRUMENTS]
-        play_node_hits(hits, self.audio, self.melody, True)
-        self.assertEqual(self.melody.position, 1)
+        play_node_hits(hits, self.audio)
         self.assertEqual(self.audio.play_note.call_count, 4)
-        self.assertTrue(all(
-            call.args[0] == MELODY_NOTES[0]
-            for call in self.audio.play_note.call_args_list
-        ))
-        play_node_hits(hits[:1], self.audio, self.melody, True)
-        self.assertEqual(self.audio.play_note.call_args.args[0], MELODY_NOTES[1])
+        played = {call.kwargs["instrument"]: call.args[0] for call in self.audio.play_note.call_args_list}
+        self.assertEqual(played, {item.key: item.freestyle_note for item in INSTRUMENTS})
 
     def test_same_instrument_in_one_frame_uses_strongest_hit_once(self):
         hits = [NodeHit(self.node(), rating) for rating in ("GOOD", "PERFECT")]
-        play_node_hits(hits, self.audio, self.melody, True)
+        play_node_hits(hits, self.audio)
         self.audio.play_note.assert_called_once_with(
-            MELODY_NOTES[0], instrument="keys", velocity=1.0
+            INSTRUMENTS[0].freestyle_note, instrument="keys", velocity=1.0
         )
 
-    def test_free_play_uses_instrument_pitches_without_advancing_melody(self):
+    def test_song_node_without_an_attached_pitch_is_rejected(self):
+        node = self.node()
+        node.chart_index = 0
+        with self.assertRaisesRegex(ValueError, "missing its pitch"):
+            play_node_hits([NodeHit(node, "GOOD")], self.audio)
+        self.audio.play_note.assert_not_called()
+
+    def test_free_play_uses_instrument_pitches(self):
         for instrument in INSTRUMENTS:
             play_node_hits(
                 [NodeHit(self.node(instrument), "GREAT")],
-                self.audio, self.melody, False,
+                self.audio,
             )
             self.audio.play_note.assert_called_with(
                 instrument.freestyle_note, instrument=instrument.key, velocity=0.9
             )
-        self.assertEqual(self.melody.position, 0)
 
     def test_sound_check_reports_output_failure_mid_melody_and_closes(self):
         self.audio.start.return_value = True
@@ -151,7 +137,7 @@ class HitAudioTests(unittest.TestCase):
         self.assertEqual((remaining, misses), ([], 0))
         self.assertIs(hits[0].timing_grade, TimingGrade.PERFECT)
         self.assertAlmostEqual(node.y, 720 * CHALLENGE_TARGET_HEIGHT_RATIO)
-        play_node_hits(hits, self.audio, self.melody, True)
+        play_node_hits(hits, self.audio)
         self.audio.play_note.assert_called_once_with(
             64, instrument="keys", velocity=0.75
         )
@@ -179,7 +165,7 @@ class HitAudioTests(unittest.TestCase):
         self.assertIs(hits[0].timing_grade, TimingGrade.HIT)
         self.assertEqual(rhythm_round.score.total_hits, 1)
         self.assertEqual(rhythm_round.score.misses, 0)
-        play_node_hits(hits, self.audio, self.melody, True)
+        play_node_hits(hits, self.audio)
         self.audio.play_note.assert_called_once_with(
             60, instrument="keys", velocity=0.75
         )
@@ -209,7 +195,7 @@ class HitAudioTests(unittest.TestCase):
         )
         self.assertEqual((remaining, len(hits), misses), ([], 1, 0))
         self.assertIs(hits[0].timing_grade, TimingGrade.HIT)
-        play_node_hits(hits, self.audio, self.melody, True)
+        play_node_hits(hits, self.audio)
         self.audio.play_note.assert_called_once_with(
             60, instrument="keys", velocity=0.75
         )
@@ -342,32 +328,6 @@ class HitAudioTests(unittest.TestCase):
 
         self.assertAlmostEqual(at_beat - before, node.speed * sample_seconds)
         self.assertAlmostEqual(after - at_beat, node.speed * sample_seconds)
-
-    def test_chart_targets_show_order_and_brighten_the_next_unhit_note(self):
-        frame = np.zeros((480, 640, 3), dtype=np.uint8)
-        first = self.node(y=180)
-        first.x = 180
-        first.chart_index = 0
-        first.midi_note = 60
-        second = self.node(y=180)
-        second.x = 420
-        second.chart_index = 1
-        second.midi_note = 64
-
-        with patch("app.cv2.putText", wraps=__import__("cv2").putText) as put_text:
-            draw_falling_nodes(frame, [second, first])
-
-        labels = [call.args[1] for call in put_text.call_args_list]
-        self.assertIn("C4", labels)
-        self.assertIn("E4", labels)
-        self.assertIn("01", labels)
-        self.assertIn("02", labels)
-        sample_y = 180 - first.radius
-        self.assertGreater(
-            int(frame[sample_y, 180].sum()),
-            int(frame[sample_y, 420].sum()),
-        )
-
 
 if __name__ == "__main__":
     unittest.main()

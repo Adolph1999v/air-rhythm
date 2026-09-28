@@ -325,3 +325,29 @@ h1 {
 @media (prefers-reduced-motion: reduce) {
   .start-button { transition: none; }
 }
+
+.desktop-diagnostics {
+  position: absolute;
+  z-index: 5;
+  top: 7rem;
+  right: 3rem;
+  padding: 1rem 1.2rem;
+  border: 1px solid #314853;
+  border-radius: 1rem;
+  background: rgba(5, 13, 20, 0.96);
+  color: #b4c5cf;
+  font: 0.72rem/1.65 ui-monospace, monospace;
+  white-space: pre-wrap;
+}
+.desktop-benchmark {
+  position: absolute;
+  z-index: 5;
+  bottom: 4rem;
+  left: 3rem;
+  padding: 0.65rem 1rem;
+  border: 1px solid #387785;
+  border-radius: 0.8rem;
+  background: rgba(5, 13, 20, 0.96);
+  color: #61e4ff;
+  font-size: 0.75rem;
+}

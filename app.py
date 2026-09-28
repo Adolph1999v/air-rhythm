@@ -14,6 +14,7 @@ import numpy as np
 
 from audio_engine import AudioEngine
 from camera_capture import LatestFrameCamera
+from desktop_window import launch_desktop, make_snapshot
 from hand_stabilizer import HandLandmarkStabilizer
 from wrist_guidance import WristVisibilityMonitor
 from performance_benchmark import PerformanceBenchmark, save_benchmark_report
@@ -23,23 +24,14 @@ from music import (
     MELODY_NOTES,
     MELODY_STEP_SECONDS,
     MELODY_TITLE,
-    MelodyPlayer,
-    note_name,
 )
 from privacy import PrivacyMode, PrivacyRenderer
-from performance_stage import (
-    create_performance_stage,
-    draw_camera_inset,
-    draw_collision_points,
-    draw_virtual_drumsticks,
-)
 from rhythm_game import (
     ChartEvent,
     RhythmRound,
     RoundPhase,
     TimingGrade,
 )
-import ui
 
 
 CAMERA_INDEX = 0
@@ -48,7 +40,6 @@ CAMERA_REQUEST_HEIGHT = 720
 CAMERA_REQUEST_FPS = 30.0
 CAMERA_PROCESSING_MAX_WIDTH = 1280
 CAMERA_PROCESSING_MAX_HEIGHT = 720
-WINDOW_TITLE = "Air Rhythm | Play with your hands"
 MAX_HANDS = 2
 MODEL_PATH = Path(__file__).resolve().parent / "models" / "hand_landmarker.task"
 BENCHMARK_REPORT_DIRECTORY = (
@@ -62,10 +53,6 @@ FINGERTIP_TOUCH_RADIUS = 10
 HIT_EFFECT_DURATION_SECONDS = 0.35
 MIN_NODE_RADIUS = 34
 NODE_RADIUS_PER_FRAME_MIN_DIMENSION = 0.0585
-# The main stage uses the native shape of modern Mac displays.  This prevents
-# the OpenCV window from placing a 16:9 camera image inside a much taller
-# maximized client area.
-STAGE_ASPECT_RATIO = 16 / 10
 # A target becomes playable in the upper third of the stage, leaving the rest
 # of the screen free for the falling-circle motion and virtual drumsticks.
 CHALLENGE_TARGET_HEIGHT_RATIO = 0.30
@@ -76,37 +63,7 @@ PERFECT_MOVEMENT_SPEED = 0.65
 MOTION_SMOOTHING = 0.6
 MAX_MOTION_SAMPLE_GAP_SECONDS = 0.2
 
-# Each pair says which two hand landmarks should be joined by a line.
-HAND_CONNECTIONS = (
-    (0, 1),
-    (1, 2),
-    (2, 3),
-    (3, 4),  # Thumb
-    (0, 5),
-    (5, 6),
-    (6, 7),
-    (7, 8),  # Index finger
-    (0, 9),
-    (9, 10),
-    (10, 11),
-    (11, 12),  # Middle finger
-    (0, 13),
-    (13, 14),
-    (14, 15),
-    (15, 16),  # Ring finger
-    (0, 17),
-    (17, 18),
-    (18, 19),
-    (19, 20),  # Pinky
-    (5, 9),
-    (9, 13),
-    (13, 17),  # Palm
-)
 FINGERTIP_INDICES = (4, 8, 12, 16, 20)
-
-LANDMARK_COLOR = (255, 210, 0)
-CONNECTION_COLOR = (255, 150, 0)
-FINGERTIP_COLOR = (0, 255, 0)
 
 GAME_MODE_CHALLENGE = "challenge"
 GAME_MODE_FREE_PLAY = "free_play"
@@ -336,31 +293,6 @@ def landmark_to_pixel(landmark, frame_width: int, frame_height: int) -> tuple[in
     return pixel_x, pixel_y
 
 
-def draw_hand_skeleton(frame, hand_landmarks) -> None:
-    """Draw one hand's landmark points, connecting lines, and fingertips."""
-    frame_height, frame_width = frame.shape[:2]
-    pixel_points = [
-        landmark_to_pixel(landmark, frame_width, frame_height)
-        for landmark in hand_landmarks
-    ]
-
-    for start_index, end_index in HAND_CONNECTIONS:
-        cv2.line(
-            frame,
-            pixel_points[start_index],
-            pixel_points[end_index],
-            CONNECTION_COLOR,
-            2,
-            cv2.LINE_AA,
-        )
-
-    for landmark_index, point in enumerate(pixel_points):
-        is_fingertip = landmark_index in FINGERTIP_INDICES
-        color = FINGERTIP_COLOR if is_fingertip else LANDMARK_COLOR
-        radius = 7 if is_fingertip else 4
-        cv2.circle(frame, point, radius, color, -1, cv2.LINE_AA)
-
-
 def collect_fingertip_motions(
     detection_result,
     frame_width: int,
@@ -522,27 +454,6 @@ def node_radius_for_frame(frame_width: int, frame_height: int) -> int:
     )
 
 
-def stage_dimensions_for_camera(
-    camera_width: int,
-    camera_height: int,
-) -> tuple[int, int]:
-    """Return a 16:10 stage that fully contains the live camera resolution.
-
-    The performance view is generated independently from the camera preview.
-    Rendering it in the same 16:10 shape as a maximized Mac client area avoids
-    the large gray letterbox that a 16:9 camera frame would otherwise create.
-    """
-    if camera_width < 1 or camera_height < 1:
-        raise ValueError("camera dimensions must be positive")
-
-    stage_height = round(camera_width / STAGE_ASPECT_RATIO)
-    if stage_height >= camera_height:
-        return camera_width, stage_height
-
-    stage_width = round(camera_height * STAGE_ASPECT_RATIO)
-    return stage_width, camera_height
-
-
 def choose_node_x(
     frame_width: int,
     radius: int,
@@ -558,6 +469,26 @@ def choose_node_x(
             break
         candidate_x = random.randint(minimum_x, maximum_x)
     return candidate_x
+
+
+def resize_stage_geometry(nodes, effects, previous_size, size, travel_seconds):
+    """Keep visible positions and collision geometry aligned after a resize."""
+    old_width, old_height = previous_size
+    width, height = size
+    radius = node_radius_for_frame(width, height)
+    for node in nodes:
+        node.x *= width / old_width
+        node.y *= height / old_height
+        node.radius = radius
+        node.speed = (
+            max(1.0, (height * CHALLENGE_TARGET_HEIGHT_RATIO - radius) / travel_seconds)
+            if node.chart_index is not None else height * NODE_FALL_SPEED_PER_FRAME_HEIGHT
+        )
+    for effect in effects:
+        effect.position = (
+            round(effect.position[0] * width / old_width),
+            round(effect.position[1] * height / old_height),
+        )
 
 
 def create_falling_node(
@@ -752,30 +683,19 @@ def update_challenge_nodes(
 def play_node_hits(
     node_hits: list[NodeHit],
     audio: AudioEngine,
-    melody: MelodyPlayer,
-    melody_mode: bool,
 ) -> None:
     """Play chart notes in challenge mode or color notes in free play."""
     if not node_hits:
         return
 
-    # Older hit-paced nodes have no attached pitch. Keep their shared melody
-    # step as a safe fallback while scheduled song nodes carry their own pitch.
-    fallback_melody_note = None
-    if melody_mode and any(hit.node.midi_note is None for hit in node_hits):
-        fallback_melody_note = melody.advance()
-
     requested_notes: dict[tuple[str, int], float] = {}
     for hit in node_hits:
-        instrument_key = hit.node.instrument
+        node = hit.node
+        instrument_key = node.instrument
         instrument = INSTRUMENT_BY_KEY[instrument_key]
-        pitch = (
-            hit.node.midi_note
-            if melody_mode and hit.node.midi_note is not None
-            else fallback_melody_note
-            if melody_mode
-            else instrument.freestyle_note
-        )
+        if node.chart_index is not None and node.midi_note is None:
+            raise ValueError("A challenge node is missing its pitch.")
+        pitch = node.midi_note if node.chart_index is not None else instrument.freestyle_note
         note_key = (instrument_key, pitch)
         requested_notes[note_key] = max(
             requested_notes.get(note_key, 0.0),
@@ -784,158 +704,6 @@ def play_node_hits(
 
     for (instrument_key, pitch), velocity in requested_notes.items():
         audio.play_note(pitch, instrument=instrument_key, velocity=velocity)
-
-
-def draw_falling_nodes(
-    frame,
-    active_nodes: list[FallingNode],
-    current_time: float | None = None,
-) -> None:
-    """Draw browser-style notes with a gold edge on the next chart note."""
-    chart_indices = [
-        node.chart_index for node in active_nodes if node.chart_index is not None
-    ]
-    next_chart_index = min(chart_indices) if chart_indices else None
-    frame_height, frame_width = frame.shape[:2]
-
-    for node in active_nodes:
-        center = (round(node.x), round(node.y))
-        radius = max(1, int(node.radius))
-        is_next = node.chart_index is not None and node.chart_index == next_chart_index
-        edge_color = ui.GOLD if is_next else node.color
-
-        # Work in a small local area so the glow does not copy the full stage
-        # for every falling note.
-        padding = max(5, radius // 3)
-        left = max(0, center[0] - radius - padding)
-        top = max(0, center[1] - radius - padding)
-        right = min(frame_width, center[0] + radius + padding + 1)
-        bottom = min(frame_height, center[1] + radius + padding + 1)
-        if right <= left or bottom <= top:
-            continue
-        roi = frame[top:bottom, left:right]
-        glow = roi.copy()
-        local_center = (center[0] - left, center[1] - top)
-        cv2.circle(
-            glow, local_center, radius + max(3, padding // 2),
-            edge_color, -1, cv2.LINE_AA,
-        )
-        cv2.addWeighted(glow, 0.13 if is_next else 0.08, roi, 0.87 if is_next else 0.92, 0, roi)
-
-        dark = (37, 25, 16)  # Browser note interior: #101925 in BGR.
-        mid = tuple(round(channel * 0.45 + shade * 0.55) for channel, shade in zip(node.color, dark))
-        cv2.circle(frame, center, radius, node.color, -1, cv2.LINE_AA)
-        cv2.circle(frame, center, max(1, round(radius * 0.87)), dark, -1, cv2.LINE_AA)
-        cv2.circle(frame, center, max(1, round(radius * 0.57)), mid, -1, cv2.LINE_AA)
-        cv2.circle(
-            frame,
-            (center[0] - round(radius * 0.28), center[1] - round(radius * 0.34)),
-            max(1, round(radius * 0.09)),
-            ui.WHITE, -1, cv2.LINE_AA,
-        )
-        cv2.circle(
-            frame, center, radius, edge_color,
-            max(3, round(radius * 0.11)) if is_next else max(2, round(radius * 0.06)),
-            cv2.LINE_AA,
-        )
-
-        label = (
-            note_name(node.midi_note)
-            if node.midi_note is not None
-            else INSTRUMENT_BY_KEY[node.instrument].label
-        )
-        label_scale = min(0.85, max(0.30, radius * 0.012))
-        label_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, label_scale, 2)[0]
-        label_x = center[0] - label_size[0] // 2
-        label_y = center[1] + label_size[1] // 2 - (round(radius * 0.10) if node.chart_index is not None else 0)
-        cv2.putText(
-            frame, label, (label_x, label_y), cv2.FONT_HERSHEY_SIMPLEX,
-            label_scale, ui.TEXT_SHADOW, 4, cv2.LINE_AA,
-        )
-        cv2.putText(
-            frame, label, (label_x, label_y), cv2.FONT_HERSHEY_SIMPLEX,
-            label_scale, ui.WHITE, 2, cv2.LINE_AA,
-        )
-        if node.chart_index is not None:
-            order = f"{node.chart_index + 1:02d}"
-            order_scale = max(0.24, min(0.42, radius * 0.006))
-            order_size = cv2.getTextSize(order, cv2.FONT_HERSHEY_SIMPLEX, order_scale, 1)[0]
-            cv2.putText(
-                frame, order,
-                (center[0] - order_size[0] // 2, center[1] + round(radius * 0.48)),
-                cv2.FONT_HERSHEY_SIMPLEX, order_scale, ui.MUTED, 1, cv2.LINE_AA,
-            )
-
-
-def draw_hit_effects(
-    frame,
-    hit_effects: list[HitEffect],
-    current_time: float,
-) -> None:
-    """Show brief floating hit labels, without a second circle around notes."""
-    frame_height, frame_width = frame.shape[:2]
-    scale = max(0.4, min(1.4, min(frame_width / 1280, frame_height / 720)))
-    for effect in hit_effects:
-        progress = (current_time - effect.started_at) / HIT_EFFECT_DURATION_SECONDS
-        if not 0 <= progress <= 1:
-            continue
-        x = int(effect.position[0])
-        y = int(effect.position[1] - progress * frame_height * 0.08)
-        fade = 0.35 + 0.65 * (1.0 - progress)
-        color = tuple(round(channel * fade) for channel in ui.WHITE)
-        rating = str(effect.rating)
-        text_scale = max(0.42, 0.70 * scale)
-        text_width = cv2.getTextSize(rating, cv2.FONT_HERSHEY_SIMPLEX, text_scale, 2)[0][0]
-        origin = (x - text_width // 2, max(18, y))
-        cv2.putText(
-            frame, rating, origin, cv2.FONT_HERSHEY_SIMPLEX,
-            text_scale, ui.TEXT_SHADOW, 4, cv2.LINE_AA,
-        )
-        cv2.putText(
-            frame, rating, origin, cv2.FONT_HERSHEY_SIMPLEX,
-            text_scale, color, 2, cv2.LINE_AA,
-        )
-        if effect.detail:
-            detail = str(effect.detail)
-            detail_scale = max(0.28, 0.42 * scale)
-            detail_width = cv2.getTextSize(
-                detail, cv2.FONT_HERSHEY_SIMPLEX, detail_scale, 1,
-            )[0][0]
-            detail_origin = (
-                x - detail_width // 2,
-                min(frame_height - 8, origin[1] + max(15, int(20 * scale))),
-            )
-            detail_color = tuple(round(channel * fade) for channel in effect.color)
-            cv2.putText(
-                frame, detail, detail_origin, cv2.FONT_HERSHEY_SIMPLEX,
-                detail_scale, detail_color, 1, cv2.LINE_AA,
-            )
-
-
-def draw_strike_feedback(
-    frame,
-    fingertip_motions: list[FingertipMotion],
-) -> None:
-    """Highlight fingertips only while a deliberate strike is detected."""
-    for motion in fingertip_motions:
-        if motion.strike_direction is None:
-            continue
-
-        if motion.strike_direction == "DOWN":
-            strike_color = (0, 165, 255)
-        elif motion.strike_direction == "FORWARD":
-            strike_color = (255, 80, 220)
-        else:
-            strike_color = (255, 255, 255)
-
-        cv2.circle(
-            frame,
-            motion.position,
-            15,
-            strike_color,
-            3,
-            cv2.LINE_AA,
-        )
 
 
 def run_sound_test() -> bool:
@@ -962,32 +730,7 @@ def run_sound_test() -> bool:
         audio.close()
 
 
-def configure_display_window() -> None:
-    """Use a resizable, ratio-preserving window for the generated stage.
-
-    The stage itself is rendered at 16:10, so this preserves circular targets
-    while fitting a maximized modern Mac display without a large letterbox.
-    """
-    cv2.namedWindow(
-        WINDOW_TITLE,
-        cv2.WINDOW_NORMAL | cv2.WINDOW_KEEPRATIO,
-    )
-    aspect_property = getattr(cv2, "WND_PROP_ASPECT_RATIO", None)
-    if aspect_property is None:
-        return
-    try:
-        cv2.setWindowProperty(
-            WINDOW_TITLE,
-            aspect_property,
-            cv2.WINDOW_KEEPRATIO,
-        )
-    except cv2.error:
-        # Some HighGUI backends do not expose the aspect-ratio property.  The
-        # named-window flag above remains the supported fallback.
-        pass
-
-
-def main() -> None:
+def main(presentation) -> None:
     """Run the portfolio interface, timed challenge, and free-play mode."""
     camera = cv2.VideoCapture(CAMERA_INDEX)
 
@@ -999,7 +742,6 @@ def main() -> None:
         )
 
     camera_configuration = configure_camera_capture(camera)
-    configure_display_window()
     audio = AudioEngine(ALL_PITCHES)
     benchmark = PerformanceBenchmark()
     camera_stream = LatestFrameCamera(camera)
@@ -1020,7 +762,6 @@ def main() -> None:
             fingertip_history: dict[tuple[str, int], FingertipHistory] = {}
             hit_count = 0
             miss_count = 0
-            melody = MelodyPlayer()
             game_mode = GAME_MODE_CHALLENGE
             rhythm_round = RhythmRound(started_at=previous_frame_time)
             privacy_renderer = PrivacyRenderer(PrivacyMode.CAMERA)
@@ -1029,25 +770,23 @@ def main() -> None:
             help_opened_at: float | None = None
             show_debug = False
             smoothed_fps: float | None = None
-            stage_template: np.ndarray | None = None
             last_render_ms = 0.0
             last_complete_frame_ms = 0.0
             benchmark_notice: str | None = None
             benchmark_notice_until = 0.0
             last_camera_sequence = 0
+            previous_stage_size = None
 
-            while True:
+            while not presentation._stop_event.is_set():
                 frame_pipeline_started_at = time.perf_counter()
                 captured_frame = camera_stream.read_latest(
                     after_sequence=last_camera_sequence,
                     timeout=1.0,
                 )
                 if captured_frame is None:
-                    if camera_stream.failed:
-                        print("The camera stopped returning frames. Closing Air Rhythm.")
-                    else:
-                        print("Timed out waiting for a camera frame. Closing Air Rhythm.")
-                    break
+                    if presentation._stop_event.is_set():
+                        break
+                    raise RuntimeError("The camera stopped returning frames. Reconnect it and try again.")
                 last_camera_sequence = captured_frame.sequence
                 frame = captured_frame.image
                 camera_capture_ms = captured_frame.camera_read_ms
@@ -1081,21 +820,34 @@ def main() -> None:
                 game_update_started_at = time.perf_counter()
 
                 camera_height, camera_width = mirrored_frame.shape[:2]
-                stage_width, stage_height = stage_dimensions_for_camera(
-                    camera_width,
-                    camera_height,
-                )
-                desired_stage_shape = (stage_height, stage_width, 3)
-                if (
-                    stage_template is None
-                    or stage_template.shape != desired_stage_shape
-                    or stage_template.dtype != mirrored_frame.dtype
-                ):
-                    stage_template = np.empty(
-                        desired_stage_shape,
-                        dtype=mirrored_frame.dtype,
+                stage_width, stage_height = presentation._size()
+                if previous_stage_size is not None and previous_stage_size != (stage_width, stage_height):
+                    resize_stage_geometry(
+                        active_nodes, hit_effects, previous_stage_size,
+                        (stage_width, stage_height), rhythm_round.node_travel_seconds,
                     )
+                    fingertip_history.clear()
+                previous_stage_size = (stage_width, stage_height)
                 current_time = time.monotonic()
+                is_paused = show_help or presentation._is_hidden()
+                if screen is AppScreen.GAMEPLAY:
+                    if is_paused and help_opened_at is None:
+                        help_opened_at = current_time
+                        audio.stop_all()
+                    elif not is_paused and help_opened_at is not None:
+                        pause_seconds = max(0.0, current_time - help_opened_at)
+                        if game_mode == GAME_MODE_CHALLENGE:
+                            rhythm_round.delay_timeline(pause_seconds)
+                            for node in active_nodes:
+                                if node.target_time is not None:
+                                    node.target_time += pause_seconds
+                                if node.spawn_time is not None:
+                                    node.spawn_time += pause_seconds
+                        else:
+                            last_spawn_time += pause_seconds
+                        previous_frame_time = current_time
+                        fingertip_history.clear()
+                        help_opened_at = None
                 stabilized_hands = hand_stabilizer.update(
                     raw_detection_result.hand_landmarks,
                     raw_detection_result.handedness,
@@ -1142,7 +894,7 @@ def main() -> None:
                 node_hits: list[NodeHit] = []
                 if (
                     screen is AppScreen.GAMEPLAY
-                    and not show_help
+                    and not is_paused
                     and game_mode == GAME_MODE_CHALLENGE
                 ):
                     for event in rhythm_round.due_events(current_time):
@@ -1170,7 +922,7 @@ def main() -> None:
                         and not active_nodes
                     ):
                         screen = AppScreen.RESULTS
-                elif screen is AppScreen.GAMEPLAY and not show_help:
+                elif screen is AppScreen.GAMEPLAY and not is_paused:
                     if (
                         current_time - last_spawn_time >= NODE_SPAWN_INTERVAL_SECONDS
                         and len(active_nodes) < MAX_ACTIVE_NODES
@@ -1197,8 +949,6 @@ def main() -> None:
                     play_node_hits(
                         node_hits,
                         audio,
-                        melody,
-                        game_mode == GAME_MODE_CHALLENGE,
                     )
                     benchmark.record_audio_request(
                         (time.perf_counter() - frame_pipeline_started_at) * 1000
@@ -1218,24 +968,10 @@ def main() -> None:
                         effect_detail = None
                     else:
                         effect_rating = node_hit.timing_grade.label
-                        if node_hit.in_order is False:
-                            timing_description = "OUT OF ORDER"
-                        else:
-                            timing_milliseconds = round(
-                                abs(node_hit.timing_error or 0.0) * 1000
-                            )
-                            if timing_milliseconds <= 15:
-                                timing_description = "ON BEAT"
-                            elif (node_hit.timing_error or 0.0) < 0:
-                                timing_description = f"{timing_milliseconds} ms EARLY"
-                            else:
-                                timing_description = f"{timing_milliseconds} ms LATE"
-                        motion_description = {
-                            "GOOD": "TOUCH",
-                            "GREAT": "STRONG",
-                            "PERFECT": "POWER",
-                        }[node_hit.rating]
-                        effect_detail = f"{timing_description} | {motion_description}"
+                        effect_detail = (
+                            "OUT OF ORDER" if node_hit.in_order is False else
+                            f"NOTE {node_hit.node.chart_index + 1}"
+                        )
 
                     hit_effects.append(
                         HitEffect(
@@ -1285,160 +1021,32 @@ def main() -> None:
                 privacy_label = PRIVACY_LABELS[privacy_renderer.mode]
                 sound_label = audio_status_label(audio)
 
-                # The only place where camera pixels are shown is the compact
-                # live-input inset.  The main display below is generated from
-                # scratch, so the performer remains off the music stage.
                 render_started_at = time.perf_counter()
                 input_preview = privacy_renderer.apply(
                     mirrored_frame,
                     detection_result.hand_landmarks,
                 )
-                for hand_landmarks in detection_result.hand_landmarks:
-                    draw_hand_skeleton(input_preview, hand_landmarks)
-                draw_strike_feedback(input_preview, fingertip_motions)
-
-                display_frame = create_performance_stage(
-                    stage_template,
-                    current_time,
-                )
                 presentation_time = (
                     help_opened_at
-                    if (
-                        show_help
-                        and screen is AppScreen.GAMEPLAY
-                        and help_opened_at is not None
-                    )
+                    if is_paused and screen is AppScreen.GAMEPLAY and help_opened_at is not None
                     else current_time
                 )
-                if screen is not AppScreen.TITLE:
-                    draw_falling_nodes(
-                        display_frame,
-                        active_nodes,
-                        (
-                            presentation_time
-                            if game_mode == GAME_MODE_CHALLENGE
-                            else None
-                        ),
-                    )
-                    draw_hit_effects(display_frame, hit_effects, current_time)
-
-                # Landmark 8 anchors each visible drumstick tip, while the
-                # real hand and full skeleton remain visible in the inset.
-                draw_virtual_drumsticks(
-                    display_frame,
-                    visible_hand_landmarks,
-                )
-                draw_collision_points(
-                    display_frame,
-                    detection_result.hand_landmarks,
-                )
-
-                if screen is AppScreen.TITLE:
-                    ui.draw_title_screen(
-                        display_frame,
-                        hand_count=hand_count,
-                        privacy_label=privacy_label,
-                        sound_label=sound_label,
-                        current_time=current_time,
-                    )
-                elif screen is AppScreen.GAMEPLAY:
-                    challenge_mode = game_mode == GAME_MODE_CHALLENGE
-                    score = rhythm_round.score
-                    ui.draw_game_hud(
-                        display_frame,
-                        hands=hand_count,
-                        score=score.score if challenge_mode else hit_count * 100,
-                        combo=score.combo if challenge_mode else 0,
-                        progress=(
-                            rhythm_round.progress_at(presentation_time)
-                            if challenge_mode
-                            else 0.0
-                        ),
-                        hits=hit_count,
-                        misses=miss_count,
-                        mode_label="Challenge" if challenge_mode else "Free play",
-                        song_label=(
-                            MELODY_TITLE
-                            if challenge_mode
-                            else "Four-instrument free play"
-                        ),
-                        privacy_label=privacy_label,
-                        sound_label=sound_label,
-                    )
-                    if challenge_mode:
-                        remaining = rhythm_round.countdown_remaining(
-                            presentation_time
-                        )
-                        if remaining > 0:
-                            ui.draw_countdown(
-                                display_frame,
-                                str(max(1, math.ceil(remaining))),
-                                progress=(
-                                    1.0
-                                    - remaining / rhythm_round.countdown_seconds
-                                    if rhythm_round.countdown_seconds > 0
-                                    else 1.0
-                                ),
-                                current_time=presentation_time,
-                            )
-                        elif presentation_time - rhythm_round.song_start_time < 0.5:
-                            ui.draw_countdown(
-                                display_frame,
-                                "GO!",
-                                progress=1.0,
-                                current_time=presentation_time,
-                            )
-                else:
-                    score = rhythm_round.score
-                    ui.draw_results(
-                        display_frame,
-                        score=score.score,
-                        completion=score.completion_accuracy,
-                        rank=score.rank,
-                        perfect=score.perfect,
-                        great=score.great,
-                        good=score.good,
-                        misses=score.misses,
-                        max_combo=score.max_combo,
-                        basic_hits=score.basic_hits,
-                        song_label=f"{MELODY_TITLE} challenge",
-                        replay_hint="R / SPACE  Replay     T  Title",
-                        hand_count=hand_count,
-                        privacy_label=privacy_label,
-                        sound_label=sound_label,
-                    )
-
-                if show_debug:
-                    ui.draw_debug_overlay(
-                        display_frame,
-                        debug_info,
-                        top_offset=max(50, int(stage_height * 0.13)),
-                    )
-
-                inset_bounds = draw_camera_inset(
-                    display_frame,
-                    input_preview,
-                    mode_label=privacy_label,
-                    hand_count=hand_count,
-                    compact=screen is AppScreen.GAMEPLAY,
-                )
-                if screen is AppScreen.GAMEPLAY and not show_help and wrist_warning:
-                    ui.draw_tracking_warning(display_frame, inset_bounds)
-
-                if show_help:
-                    ui.draw_help_overlay(display_frame)
-
                 benchmark_clock = time.perf_counter()
                 if benchmark_notice_until <= benchmark_clock:
                     benchmark_notice = None
-                if benchmark.active or benchmark_notice:
-                    ui.draw_benchmark_status(
-                        display_frame,
-                        benchmark.live_summary(benchmark_clock),
-                        notice=benchmark_notice,
-                    )
-
-                cv2.imshow(WINDOW_TITLE, display_frame)
+                snapshot = make_snapshot(
+                    screen=screen, game_mode=game_mode, rhythm_round=rhythm_round,
+                    nodes=active_nodes, effects=hit_effects,
+                    active_hands=detection_result.hand_landmarks,
+                    visible_hands=visible_hand_landmarks,
+                    width=stage_width, height=stage_height, now=current_time,
+                    presentation_time=presentation_time, hit_count=hit_count, miss_count=miss_count,
+                    show_help=is_paused, wrist_warning=wrist_warning, audio=audio,
+                    debug_info=debug_info, show_debug=show_debug,
+                    benchmark_info=benchmark.live_summary(benchmark_clock) if benchmark.active else None,
+                    benchmark_notice=benchmark_notice, privacy_label=privacy_label,
+                )
+                presentation._publish(snapshot, input_preview)
                 last_render_ms = (
                     time.perf_counter() - render_started_at
                 ) * 1000
@@ -1457,7 +1065,7 @@ def main() -> None:
                     camera_frames_skipped=camera_frames_skipped,
                 )
 
-                pressed_key = cv2.waitKey(1) & 0xFF
+                pressed_key = presentation._read_key()
                 if pressed_key == ord("q"):
                     break
                 if pressed_key == ord("p"):
@@ -1465,29 +1073,12 @@ def main() -> None:
                 elif pressed_key == ord("m"):
                     audio.set_muted(not audio.muted)
                 elif pressed_key == ord("h"):
-                    if show_help:
-                        if (
-                            screen is AppScreen.GAMEPLAY
-                            and help_opened_at is not None
-                        ):
-                            pause_seconds = max(0.0, current_time - help_opened_at)
-                            if game_mode == GAME_MODE_CHALLENGE:
-                                rhythm_round.delay_timeline(pause_seconds)
-                                for node in active_nodes:
-                                    if node.target_time is not None:
-                                        node.target_time += pause_seconds
-                                    if node.spawn_time is not None:
-                                        node.spawn_time += pause_seconds
-                            else:
-                                last_spawn_time += pause_seconds
-                            previous_frame_time = current_time
-                            fingertip_history.clear()
-                        show_help = False
-                        help_opened_at = None
-                    else:
-                        show_help = True
-                        help_opened_at = current_time
-                        audio.stop_all()
+                    if screen is not AppScreen.TITLE:
+                        show_help = not show_help
+                        if show_help:
+                            if screen is AppScreen.GAMEPLAY and help_opened_at is None:
+                                help_opened_at = current_time
+                            audio.stop_all()
                 elif pressed_key == ord("d"):
                     show_debug = not show_debug
                 elif pressed_key == ord("b"):
@@ -1526,6 +1117,10 @@ def main() -> None:
                                     f"{camera_width}x{camera_height}"
                                 ),
                                 "stage_resolution": f"{stage_width}x{stage_height}",
+                                "renderer": "Shared HTML/CSS/Canvas",
+                                "rendering_measurement": (
+                                    "Python snapshot and inset preparation; excludes native browser paint"
+                                ),
                                 "screen": screen.value,
                                 "game_mode": game_mode,
                                 "input_view": privacy_label,
@@ -1549,7 +1144,6 @@ def main() -> None:
                     game_mode = GAME_MODE_CHALLENGE
                     show_help = False
                     help_opened_at = None
-                    melody.reset()
                     audio.stop_all()
                     active_nodes.clear()
                     hit_effects.clear()
@@ -1576,7 +1170,6 @@ def main() -> None:
                         show_help = False
                         help_opened_at = None
                         rhythm_round.reset(started_at=current_time)
-                        melody.reset()
                         audio.stop_all()
                         active_nodes.clear()
                         hit_effects.clear()
@@ -1595,7 +1188,6 @@ def main() -> None:
                 print(f"Could not save benchmark report: {error}")
         camera_stream.close()
         audio.close()
-        cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":
@@ -1607,4 +1199,4 @@ if __name__ == "__main__":
     arguments = parser.parse_args()
     if arguments.sound_test:
         raise SystemExit(0 if run_sound_test() else 1)
-    main()
+    launch_desktop(main)

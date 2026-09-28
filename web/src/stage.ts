@@ -7,6 +7,15 @@ import { INSTRUMENTS, noteName } from './music'
 type Point = { x: number; y: number }
 type Star = { x: number; y: number; radius: number; alpha: number }
 
+export type StageNode = Pick<FallingNode, 'xRatio' | 'yRatio' | 'color' | 'pitch' | 'instrument'> & {
+  event?: { index: number }
+}
+export interface StageScene {
+  nodes: readonly StageNode[]
+  effects: RhythmGame['effects']
+  nextUnresolvedIndex: number | null
+}
+
 const FINGERTIPS = [4, 8, 12, 16, 20] as const
 const HAND_CONNECTIONS: ReadonlyArray<readonly [number, number]> = [
   [0, 1], [1, 2], [2, 3], [3, 4],
@@ -61,7 +70,7 @@ export class StageRenderer {
     return { width: this.width, height: this.height }
   }
 
-  render(hands: TrackedHand[], timeMs: number, game?: RhythmGame, reducedMotion = false): void {
+  render(hands: TrackedHand[], timeMs: number, game?: StageScene, reducedMotion = false): void {
     this.resizeIfNeeded()
     const { ctx, width, height } = this
     ctx.fillStyle = '#020305'
@@ -92,14 +101,14 @@ export class StageRenderer {
     }
 
     if (game) {
-      for (const node of game.nodes) this.drawNode(node, Boolean(node.event) && game.round?.nextUnresolvedIndex === node.event?.index)
+      for (const node of game.nodes) this.drawNode(node, Boolean(node.event) && game.nextUnresolvedIndex === node.event?.index)
       for (const effect of game.effects) this.drawEffect(effect, timeMs / 1000)
     }
 
     hands.forEach((hand, index) => this.drawStick(hand, colorFor(hand, index)))
   }
 
-  private drawNode(node: FallingNode, next: boolean): void {
+  private drawNode(node: StageNode, next: boolean): void {
     const { ctx, width, height } = this
     const x = node.xRatio * width
     const y = node.yRatio * height
@@ -258,7 +267,7 @@ export class StageRenderer {
 
 export function drawInputPreview(
   canvas: HTMLCanvasElement,
-  mirroredFrame: HTMLCanvasElement,
+  mirroredFrame: HTMLCanvasElement | HTMLImageElement,
   hands: TrackedHand[],
 ): void {
   if (canvas.width !== mirroredFrame.width || canvas.height !== mirroredFrame.height) {

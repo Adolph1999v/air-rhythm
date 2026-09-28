@@ -1,4 +1,4 @@
-"""Instrument identities and a hit-by-hit melody, independent of the camera."""
+"""Instrument identities and scheduled melody pitches, independent of the camera."""
 
 from dataclasses import dataclass
 
@@ -29,7 +29,7 @@ MELODY_TITLE = "Fur Elise"
 # for Mutopia and marked Public Domain in the score and its LilyPond source.
 # https://www.mutopiaproject.org/ftp/BeethovenLv/WoO59/fur_Elise_WoO59/fur_Elise_WoO59-let.pdf
 # This simplified arrangement omits repeats. Preview timings include rests
-# after longer notes; gameplay itself advances only when the player hits.
+# after longer notes; gameplay schedules these pitches on a fixed beat clock.
 # Each pair is (MIDI pitch, seconds until the next preview note).
 _MELODY_STEPS = (
     (76, 0.24), (75, 0.24),                              # E5 D#5 pickup
@@ -51,33 +51,3 @@ MELODY_STEP_SECONDS: tuple[float, ...] = tuple(
 ALL_PITCHES: tuple[int, ...] = tuple(
     sorted(set(MELODY_NOTES) | {instrument.freestyle_note for instrument in INSTRUMENTS})
 )
-
-
-def note_name(midi_note: int) -> str:
-    """Show a MIDI pitch as a familiar name: 60 is C4, 75 is D#5."""
-    if not 0 <= midi_note <= 127:
-        raise ValueError("A MIDI note must be between 0 and 127.")
-    pitch_names = ("C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B")
-    return f"{pitch_names[midi_note % 12]}{midi_note // 12 - 1}"
-
-
-@dataclass
-class MelodyPlayer:
-    """Keep the next pitch ready; a miss does not move the melody forward."""
-
-    position: int = 0
-
-    @property
-    def next_note(self) -> int:
-        """Read the next pitch without playing it or changing the position."""
-        return MELODY_NOTES[self.position]
-
-    def advance(self) -> int:
-        """Return this hit's pitch and prepare the next one, looping at the end."""
-        pitch = self.next_note
-        self.position = (self.position + 1) % len(MELODY_NOTES)
-        return pitch
-
-    def reset(self) -> None:
-        """Start again from the recognizable opening E5."""
-        self.position = 0

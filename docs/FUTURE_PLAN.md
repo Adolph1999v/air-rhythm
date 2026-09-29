@@ -237,7 +237,7 @@ This will add original ML work while MediaPipe continues to provide the raw hand
 
 ## Desktop visual parity with the browser
 
-**Status:** A native desktop window now loads the shared web interface. Automated native-window checks use synthetic input; live-camera review is still pending before merging.
+**Status:** The native desktop window loads the shared web interface. Automated native-window checks use synthetic input; a side-by-side live-camera review at the showcase resolution remains useful.
 
 - Both versions use the same HTML/CSS, text, menus, status badges, HUD, results, note graphics, and input inset. UI resolution is independent of camera resolution.
 - Python retains desktop capture, MediaPipe inference, filtering, collision, scoring, and audio. A latest-state bridge drives the native window.
@@ -265,7 +265,7 @@ These ideas can make Air Rhythm more game-like, but they come after the portfoli
 - Commercial game release or monetisation.
 - Large content libraries or licensed popular-song recordings.
 - Online multiplayer, accounts, leaderboards, or cloud services.
-- Mobile and console versions.
+- Native mobile and console apps; the existing website can be played on a phone.
 - Complex menus, cosmetics, achievements, or progression systems.
 - Anti-cheat systems or competitive balancing.
 - Production support for every camera, speaker, and operating system.

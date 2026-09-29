@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Air Rhythm star icon">
+  <rect width="512" height="512" rx="112" fill="#020305"/>
+  <circle cx="256" cy="256" r="175" fill="none" stroke="#1b313b" stroke-width="5"/>
+  <path d="M256 99 288 224 413 256 288 288 256 413 224 288 99 256 224 224Z" fill="#61e4ff"/>
+  <circle cx="256" cy="256" r="26" fill="#effbff"/>
+</svg>

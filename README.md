@@ -1,6 +1,6 @@
 # Air Rhythm — Computer Vision Music Interface
 
-Air Rhythm lets you play music by moving your hands in front of a webcam. A live hand-tracking model locates your fingertips; my computer-vision and timing code turns their movement into hits on falling notes. The Python desktop app and a locally playable browser version share the same interface, song, and scoring rules. In both, a small camera inset shows the real hand skeleton driving the virtual sticks.
+Air Rhythm lets you play music by moving your hands in front of a webcam. A live hand-tracking model locates your fingertips; my computer-vision and timing code turns their movement into hits on falling notes. The Python desktop app and [playable browser version](https://air-rhythm.pages.dev/) share the same interface, song, and scoring rules. In both, a small camera inset shows the real hand skeleton driving the virtual sticks.
 
 ## Computer vision in action
 
@@ -48,4 +48,4 @@ With GNU Make, Node.js, and `uv` or Python 3.14 installed, run `make install` fr
 | [Performance Study](docs/PERFORMANCE_STUDY.md) | Benchmark method, before-and-after data, and limitations |
 | [Future Plan](docs/FUTURE_PLAN.md) | Demo, robustness tests, and future ML work |
 
-Both local versions are playable. Final demo recording, broader tracking checks, and phone-specific browser testing are still in progress.
+The browser version is live; the desktop app can be run locally. Final demo recording, broader tracking checks, and post-deployment phone testing are still in progress.

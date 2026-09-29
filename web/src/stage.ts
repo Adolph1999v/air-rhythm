@@ -59,11 +59,13 @@ export class StageRenderer {
   private height = 0
   private stars: Star[] = []
 
-  constructor(private readonly canvas: HTMLCanvasElement) {
+  constructor(private readonly canvas: HTMLCanvasElement, private mobileLayout = false) {
     const ctx = canvas.getContext('2d')
     if (!ctx) throw new Error('This browser cannot draw the performance stage.')
     this.ctx = ctx
   }
+
+  setMobileLayout(mobileLayout: boolean): void { this.mobileLayout = mobileLayout }
 
   size(): { width: number; height: number } {
     this.resizeIfNeeded()
@@ -112,7 +114,7 @@ export class StageRenderer {
     const { ctx, width, height } = this
     const x = node.xRatio * width
     const y = node.yRatio * height
-    const radius = nodeRadius(width, height)
+    const radius = nodeRadius(width, height, this.mobileLayout)
     if (y + radius < 0 || y - radius > height) return
     ctx.save()
     ctx.shadowColor = node.color

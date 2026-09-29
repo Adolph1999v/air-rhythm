@@ -54,7 +54,7 @@ The collision system checks all fingertips and the path between each fingertip's
 
 `web/src/interface.ts`, `style.css`, and `stage.ts` supply the markup, wording, presentation rules, and graphics for both versions. The desktop loads their local build in a [pywebview native window](https://pywebview.flowrl.com/). Its Python worker owns camera capture, MediaPipe inference, filtering, collision, score, and sound. The window receives only the newest state and an inset-sized JPEG through the local bridge. It does not run a second hand model or game engine.
 
-The standalone browser uses OpenCV.js, MediaPipe/WebAssembly, TypeScript gameplay, and Web Audio around those same interface components. In the desktop window, known note velocity fills the gaps between camera updates; extrapolation stops after 100 ms if updates stall. Hand positions are never extrapolated for collision. The desktop loads bundled local interface files, while the browser preview runs on localhost; neither version uploads or saves camera images. [Browser Version](WEB_VERSION.md) explains the different runtimes in more detail.
+The standalone browser uses OpenCV.js, MediaPipe/WebAssembly, TypeScript gameplay, and Web Audio around those same interface components. In the desktop window, known note velocity fills the gaps between camera updates; extrapolation stops after 100 ms if updates stall. Hand positions are never extrapolated for collision. The desktop loads bundled local interface files; the browser runs on localhost or the public HTTPS site. Neither version uploads or saves camera images. [Browser Version](WEB_VERSION.md) explains the different runtimes in more detail.
 
 ### Audio and music
 

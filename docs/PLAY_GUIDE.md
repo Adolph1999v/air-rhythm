@@ -60,6 +60,8 @@ The main controls are clickable in both versions. Select the Air Rhythm window b
 
 Changing mode starts a fresh round. Muting does not stop the game or its score.
 
+On a phone, use the on-screen buttons instead of keyboard shortcuts. During a round, **Mute**, **Help**, **Restart**, and **Menu** stay at the top; return to the menu to find **Stop camera**. The footer shows a play cue rather than desktop key labels. See [Browser Version](WEB_VERSION.md) for the compact layout and Home Screen option.
+
 ## Camera visibility
 
 The main stage is generated without copying camera pixels, so your face, body, and room are not shown there. The small **LIVE INPUT** inset starts in normal-camera mode to show the real image and hand skeleton together. In the desktop app, press `P` for a hands-only inset, again for a skeleton-only inset, and again to return to normal camera. The browser does not yet offer these alternate inset modes; see [Browser Version](WEB_VERSION.md).

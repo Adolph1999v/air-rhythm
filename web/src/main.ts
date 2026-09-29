@@ -28,8 +28,11 @@ const handCount = requiredElement<HTMLElement>('#hand-count')
 const cameraPlaceholder = requiredElement<HTMLElement>('#camera-placeholder')
 const welcomeMessage = requiredElement<HTMLElement>('#welcome-message')
 const liveMessage = requiredElement<HTMLElement>('#live-message')
-const game = new RhythmGame()
-const stage = new StageRenderer(requiredElement<HTMLCanvasElement>('#stage'))
+const compactViewport = window.matchMedia(
+  '(max-width: 760px), (max-width: 1024px) and (max-height: 600px) and (orientation: landscape)',
+)
+const game = new RhythmGame(Math.random, compactViewport.matches)
+const stage = new StageRenderer(requiredElement<HTMLCanvasElement>('#stage'), compactViewport.matches)
 const stabilizer = new HandStabilizer()
 const wristMonitor = new WristVisibilityMonitor()
 const motionTracker = new FingertipMotionTracker()
@@ -47,6 +50,15 @@ let shownHandCount = -1
 let helpOpen = false
 let wristWarningActive = false
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
+
+function syncCompactViewport(): void {
+  experience.classList.toggle('mobile-layout', compactViewport.matches)
+  document.body.classList.toggle('mobile-body', compactViewport.matches)
+  game.setMobileLayout(compactViewport.matches)
+  stage.setMobileLayout(compactViewport.matches)
+}
+syncCompactViewport()
+compactViewport.addEventListener('change', syncCompactViewport)
 
 function nowSeconds(): number { return performance.now() / 1000 }
 function setMessage(message: string): void { welcomeMessage.textContent = message; liveMessage.textContent = message }

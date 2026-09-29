@@ -146,3 +146,49 @@ describe('falling notes and fingertip contact', () => {
     expect(node.yRatio - initialY).toBeCloseTo(0.28 * 0.1)
   })
 })
+
+describe('compact phone playfield', () => {
+  const portrait = { width: 428, height: 510 }
+  const landscape = { width: 560, height: 250 }
+
+  it('keeps the same linear song position in portrait and landscape', () => {
+    const portraitGame = new RhythmGame(() => 0.5, true)
+    const landscapeGame = new RhythmGame(() => 0.5, true)
+    portraitGame.startChallenge(100)
+    landscapeGame.startChallenge(100)
+    portraitGame.update(103, portrait.width, portrait.height)
+    landscapeGame.update(103, landscape.width, landscape.height)
+    const portraitNode = portraitGame.nodes[0]
+    const landscapeNode = landscapeGame.nodes[0]
+    const portraitRound = portraitGame.round!
+    const landscapeRound = landscapeGame.round!
+
+    expect(portraitNode.yRatio).toBeCloseTo(0.06)
+    expect(landscapeNode.yRatio).toBeCloseTo(0.06)
+    for (const time of [104, 105, 106, 109]) {
+      expect(challengeNodeY(portraitNode, time, portrait.width, portrait.height, portraitRound, true))
+        .toBeCloseTo(challengeNodeY(landscapeNode, time, landscape.width, landscape.height, landscapeRound, true))
+    }
+    expect(challengeNodeY(portraitNode, 105, portrait.width, portrait.height, portraitRound, true)).toBeCloseTo(0.30)
+    const before = challengeNodeY(portraitNode, 104, portrait.width, portrait.height, portraitRound, true) -
+      challengeNodeY(portraitNode, 103, portrait.width, portrait.height, portraitRound, true)
+    const after = challengeNodeY(portraitNode, 106, portrait.width, portrait.height, portraitRound, true) -
+      challengeNodeY(portraitNode, 105, portrait.width, portrait.height, portraitRound, true)
+    expect(before).toBeCloseTo(after)
+  })
+
+  it('keeps free-play travel equal across orientations and smaller phone circles', () => {
+    const portraitGame = new RhythmGame(() => 0.5, true)
+    const landscapeGame = new RhythmGame(() => 0.5, true)
+    portraitGame.startFree(100)
+    landscapeGame.startFree(100)
+    portraitGame.update(100.01, portrait.width, portrait.height)
+    landscapeGame.update(100.01, landscape.width, landscape.height)
+    expect(portraitGame.nodes[0].yRatio).toBeCloseTo(landscapeGame.nodes[0].yRatio)
+    portraitGame.update(100.11, portrait.width, portrait.height)
+    landscapeGame.update(100.11, landscape.width, landscape.height)
+    expect(portraitGame.nodes[0].yRatio).toBeCloseTo(landscapeGame.nodes[0].yRatio)
+    expect(nodeRadius(portrait.width, portrait.height, true)).toBeLessThan(nodeRadius(portrait.width, portrait.height))
+    expect(nodeRadius(landscape.width, landscape.height, true)).toBeLessThan(nodeRadius(landscape.width, landscape.height))
+  })
+})

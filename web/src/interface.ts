@@ -28,6 +28,7 @@ export function mountInterface(platform: 'web' | 'desktop'): void {
       <p class="intro-copy">Bring both hands into the camera view. The index fingertips steer virtual sticks; any fingertip can catch a falling note. Camera pixels stay in the live-input inset.</p>
       <button id="start-button" class="start-button" type="button">Enable camera &amp; tracking <span aria-hidden="true">↗</span></button>
       <p id="welcome-message" class="message" role="status" aria-live="polite">Camera is off. This app does not record or upload camera frames.</p>
+      <p class="mobile-install-tip">For more room, use your browser's Add to Home Screen option and open Air Rhythm from its icon.</p>
     </div>
     <div id="menu" class="menu-panel" hidden>
       <p class="eyebrow">CAMERA READY · CHOOSE YOUR SET</p>
@@ -59,6 +60,7 @@ export function mountInterface(platform: 'web' | 'desktop'): void {
       <p>Bring both hands into the camera inset. The index fingertips steer the sticks. Any visible fingertip can touch a circle at any height until it leaves the bottom.</p>
       <p>In the song challenge, play circles in numbered order. A circle you touch out of order still sounds and scores a basic hit, but loses its timing bonus. Moving down or toward the camera adds a small movement bonus; a simple touch still works.</p>
       <p class="help-keys">1 Challenge · 2 Free play · R Restart · T Menu · H Help · M Mute</p>
+      <p class="help-touch">Use the buttons at the top to mute, restart, or return to the menu. You can stop the camera from the menu.</p>
       <button id="resume-button" class="start-button" type="button">Resume <span aria-hidden="true">↗</span></button>
     </div>
     <aside class="input-panel" aria-label="Live camera input">
@@ -66,7 +68,7 @@ export function mountInterface(platform: 'web' | 'desktop'): void {
       <div class="input-heading"><span><span class="live-dot" aria-hidden="true"></span> LIVE INPUT</span><span id="hand-count">HANDS 0/2</span></div>
       <div class="input-frame"><canvas id="input-preview" aria-label="Mirrored camera view with detected hand skeletons"></canvas><div id="camera-placeholder" class="camera-placeholder">Camera preview appears here</div></div>
     </aside>
-    <footer class="footer"><p id="live-message" aria-live="polite">Camera is off. This app does not record or upload camera frames.</p><p>1 CHALLENGE · 2 FREE PLAY · H HELP · M MUTE · T MENU</p></footer>
+    <footer class="footer"><p id="live-message" aria-live="polite">Camera is off. This app does not record or upload camera frames.</p><p class="shortcut-hints">1 CHALLENGE · 2 FREE PLAY · H HELP · M MUTE · T MENU</p><p id="mobile-hint" class="mobile-hint"></p></footer>
     <video id="camera-source" autoplay muted playsinline hidden></video>
   </section>
 `
@@ -117,6 +119,9 @@ export function renderScreen(state: ScreenState): void {
   }
   requiredElement<HTMLButtonElement>('#start-button').disabled = state.mode === 'starting'
   if (state.countdown > 0) setText('#countdown', String(Math.ceil(state.countdown)))
+  setText('#mobile-hint', screen === 'challenge'
+    ? 'Gold edge = next note · Touch any visible circle'
+    : 'Touch any falling circle to make music')
 }
 
 export interface GameStats {

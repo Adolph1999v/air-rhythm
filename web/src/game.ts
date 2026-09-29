@@ -31,14 +31,23 @@ export interface NodeHit {
 const SPAWN_INTERVAL_SECONDS = 0.55
 const FREE_FALL_PER_SECOND = 0.28
 const CHALLENGE_TARGET_RATIO = 0.30
+const MOBILE_SPAWN_RATIO = 0.06
 const EFFECT_SECONDS = 0.35
 
-export function nodeRadius(width: number, height: number): number {
-  return Math.max(34, Math.floor(Math.min(width, height) * 0.0585))
+export function nodeRadius(width: number, height: number, mobileLayout = false): number {
+  return Math.max(mobileLayout ? 22 : 34, Math.floor(Math.min(width, height) * 0.0585))
 }
 
-export function challengeNodeY(node: FallingNode, now: number, width: number, height: number, round: RhythmRound): number {
+export function challengeNodeY(
+  node: FallingNode, now: number, width: number, height: number, round: RhythmRound, mobileLayout = false,
+): number {
   if (!node.event) throw new Error('Challenge node has no chart event.')
+  if (mobileLayout) {
+    // A fixed stage-relative start keeps the same beat position and linear
+    // travel in portrait and landscape, even though their pixel heights differ.
+    const speedRatio = (CHALLENGE_TARGET_RATIO - MOBILE_SPAWN_RATIO) / round.nodeTravelSeconds
+    return MOBILE_SPAWN_RATIO + speedRatio * Math.max(0, now - round.spawnTime(node.event))
+  }
   const radius = nodeRadius(width, height)
   const speed = Math.max(1, (height * CHALLENGE_TARGET_RATIO - radius) / round.nodeTravelSeconds)
   return (radius + speed * Math.max(0, now - round.spawnTime(node.event))) / height
@@ -57,7 +66,9 @@ export class RhythmGame {
   private pausedAt: number | null = null
   private lastFreeUpdateAt: number | null = null
 
-  constructor(private readonly random: () => number = Math.random) {}
+  constructor(private readonly random: () => number = Math.random, private mobileLayout = false) {}
+
+  setMobileLayout(mobileLayout: boolean): void { this.mobileLayout = mobileLayout }
 
   startChallenge(now: number): void {
     this.clear()
@@ -91,7 +102,7 @@ export class RhythmGame {
 
   update(now: number, width: number, height: number, motions: FingertipMotion[] = []): NodeHit[] {
     if (this.pausedAt !== null || (this.screen !== 'challenge' && this.screen !== 'free')) return []
-    const radius = nodeRadius(width, height)
+    const radius = nodeRadius(width, height, this.mobileLayout)
     const radiusRatio = radius / height
     const hits: NodeHit[] = []
     // Desktop free play advances by at most 100 ms per fresh update, so a
@@ -110,7 +121,7 @@ export class RhythmGame {
 
     const remaining: FallingNode[] = []
     for (const node of this.nodes) {
-      node.yRatio = node.event && this.round ? challengeNodeY(node, now, width, height, this.round) :
+      node.yRatio = node.event && this.round ? challengeNodeY(node, now, width, height, this.round, this.mobileLayout) :
         node.yRatio + FREE_FALL_PER_SECOND * freeElapsed
       const center = { x: node.xRatio * width, y: node.yRatio * height }
       const touching = motions.filter(motion => motionTouchesCircle(motion, center, radius + 10))
@@ -139,7 +150,7 @@ export class RhythmGame {
   }
 
   private spawn(event: ChartEvent | undefined, now: number, width: number, height: number): void {
-    const radius = nodeRadius(width, height)
+    const radius = nodeRadius(width, height, this.mobileLayout)
     const nearTop = this.nodes.filter(node => node.yRatio * height < radius * (event ? 5 : 4))
     const latestSongNode = [...this.nodes].reverse().find(node => node.event)
     const minX = event && latestSongNode ? Math.max(radius, latestSongNode.xRatio * width - width * 0.20) : radius
@@ -151,7 +162,7 @@ export class RhythmGame {
     }
     const instrument = event ? INSTRUMENTS[0] : INSTRUMENTS[Math.floor(this.random() * INSTRUMENTS.length)]
     this.nodes.push({
-      id: this.nextId++, xRatio: x / width, yRatio: radius / height,
+      id: this.nextId++, xRatio: x / width, yRatio: this.mobileLayout ? MOBILE_SPAWN_RATIO : radius / height,
       instrument: instrument.key, color: instrument.color,
       pitch: event?.pitch ?? instrument.freestyleNote,
       spawnedAt: event && this.round ? this.round.spawnTime(event) : now, event,

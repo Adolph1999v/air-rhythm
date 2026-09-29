@@ -285,6 +285,7 @@ h1 {
 }
 .footer p { margin: 0; }
 .footer p:first-child { max-width: 50%; color: #a8bbc8; letter-spacing: 0; font-weight: 500; }
+.mobile-hint, .help-touch, .mobile-install-tip { display: none; }
 
 @media (max-width: 760px) {
   .topbar { align-items: flex-start; }
@@ -350,4 +351,169 @@ h1 {
   background: rgba(5, 13, 20, 0.96);
   color: #61e4ff;
   font-size: 0.75rem;
+}
+
+/* The compact web view uses a separate playfield arrangement. The desktop
+   browser and the native desktop window retain their existing layout. */
+body.mobile-body { min-height: 100dvh; overflow: hidden; }
+.experience.mobile-layout { height: 100dvh; min-height: 100dvh; }
+.experience.mobile-layout .topbar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 3;
+  align-items: center;
+  padding: calc(env(safe-area-inset-top) + 0.4rem) calc(env(safe-area-inset-right) + 0.65rem)
+    0.4rem calc(env(safe-area-inset-left) + 0.65rem);
+  background: linear-gradient(#020305 72%, rgba(2, 3, 5, 0));
+}
+.experience.mobile-layout .brand { gap: 0.35rem; font-size: 0.72rem; letter-spacing: 0.09em; }
+.experience.mobile-layout .brand-tag,
+.experience.mobile-layout .top-actions .badge { display: none; }
+.experience.mobile-layout .top-actions { gap: 0.3rem; flex-wrap: nowrap; }
+.experience.mobile-layout .quiet-button { padding: 0.39rem 0.5rem; font-size: 0.65rem; white-space: nowrap; }
+.experience.mobile-layout:is([data-screen="challenge"], [data-screen="free"]) #stop-button { display: none; }
+.experience.mobile-layout .shortcut-hints,
+.experience.mobile-layout .help-keys { display: none; }
+.experience.mobile-layout .help-touch { display: block; color: #64dff6 !important; font-size: 0.72rem !important; }
+.experience.mobile-layout .mobile-install-tip {
+  display: block;
+  margin: 0.35rem auto 0;
+  color: #8da7b5;
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+.experience.mobile-layout .footer {
+  right: calc(env(safe-area-inset-right) + 0.65rem);
+  bottom: env(safe-area-inset-bottom);
+  left: calc(env(safe-area-inset-left) + 0.65rem);
+  min-height: 2rem;
+  font-size: 0.62rem;
+  letter-spacing: 0;
+}
+.experience.mobile-layout:is([data-screen="challenge"], [data-screen="free"]) .footer #live-message { display: none; }
+.experience.mobile-layout:is([data-screen="challenge"], [data-screen="free"]) .mobile-hint {
+  display: block;
+  color: #a8bbc8;
+  font-weight: 650;
+}
+
+@media (orientation: portrait) and (max-width: 760px) {
+  .experience.mobile-layout {
+    --play-top: calc(env(safe-area-inset-top) + 8.1rem);
+    --play-bottom: calc(env(safe-area-inset-bottom) + 9.6rem);
+  }
+  .experience.mobile-layout:is([data-screen="challenge"], [data-screen="free"]) .stage {
+    top: var(--play-top);
+    bottom: auto;
+    height: max(180px, calc(100% - var(--play-top) - var(--play-bottom)));
+  }
+  .experience.mobile-layout .game-hud {
+    top: calc(env(safe-area-inset-top) + 2.85rem);
+    right: calc(env(safe-area-inset-right) + 0.65rem);
+    left: calc(env(safe-area-inset-left) + 0.65rem);
+    width: auto;
+    padding: 0.5rem 0.65rem;
+  }
+  .experience.mobile-layout .hud-title { flex-wrap: nowrap; font-size: 0.52rem; white-space: nowrap; }
+  .experience.mobile-layout .hud-title strong { font-size: 0.67rem; }
+  .experience.mobile-layout .hud-values { grid-template-columns: repeat(3, 1fr); margin-top: 0.38rem; }
+  .experience.mobile-layout .hud-values span:nth-child(3) { display: none; }
+  .experience.mobile-layout .hud-values strong { font-size: 0.9rem; }
+  .experience.mobile-layout .progress-track { margin-top: 0.45rem; }
+  .experience.mobile-layout #game-guide { display: none; }
+  .experience.mobile-layout .input-panel,
+  .experience.mobile-layout:is([data-screen="challenge"], [data-screen="free"]) .input-panel {
+    right: calc(env(safe-area-inset-right) + 0.65rem);
+    bottom: calc(env(safe-area-inset-bottom) + 2.45rem);
+    width: min(42vw, 170px);
+    padding: 0.36rem;
+  }
+  .experience.mobile-layout .input-heading { padding-bottom: 0.3rem; font-size: 0.48rem; }
+  .experience.mobile-layout .tracking-warning {
+    position: fixed;
+    right: auto;
+    bottom: calc(env(safe-area-inset-bottom) + 3.5rem);
+    left: calc(env(safe-area-inset-left) + 0.65rem);
+    width: min(48vw, 205px);
+    padding: 0.5rem;
+    font-size: 0.65rem;
+  }
+}
+
+@media (orientation: landscape) and (max-width: 1024px) and (max-height: 600px) {
+  .experience.mobile-layout {
+    --play-left: clamp(150px, 22vw, 196px);
+    --play-right: clamp(130px, 18vw, 170px);
+    --play-top: calc(env(safe-area-inset-top) + 2.8rem);
+    --play-bottom: calc(env(safe-area-inset-bottom) + 1.65rem);
+  }
+  .experience.mobile-layout .topbar { padding-top: calc(env(safe-area-inset-top) + 0.26rem); }
+  .experience.mobile-layout .brand { font-size: 0.67rem; }
+  .experience.mobile-layout .quiet-button { padding: 0.28rem 0.42rem; font-size: 0.6rem; }
+  .experience.mobile-layout:is([data-screen="challenge"], [data-screen="free"]) .stage {
+    top: var(--play-top);
+    left: var(--play-left);
+    right: auto;
+    bottom: auto;
+    width: calc(100% - var(--play-left) - var(--play-right));
+    height: max(150px, calc(100% - var(--play-top) - var(--play-bottom)));
+  }
+  .experience.mobile-layout .game-hud {
+    top: calc(env(safe-area-inset-top) + 2.85rem);
+    left: calc(env(safe-area-inset-left) + 0.35rem);
+    width: clamp(140px, 20vw, 180px);
+    padding: 0.42rem 0.48rem;
+    border-radius: 0.7rem;
+  }
+  .experience.mobile-layout .hud-title { flex-wrap: nowrap; font-size: 0.48rem; }
+  .experience.mobile-layout .hud-title strong,
+  .experience.mobile-layout .hud-values span:nth-child(3),
+  .experience.mobile-layout .hud-values span:nth-child(4),
+  .experience.mobile-layout #game-guide { display: none; }
+  .experience.mobile-layout .hud-values { grid-template-columns: repeat(2, 1fr); margin-top: 0.38rem; }
+  .experience.mobile-layout .hud-values strong { font-size: 0.84rem; }
+  .experience.mobile-layout .progress-track { margin-top: 0.42rem; }
+  .experience.mobile-layout .input-panel,
+  .experience.mobile-layout:is([data-screen="challenge"], [data-screen="free"]) .input-panel {
+    right: calc(env(safe-area-inset-right) + 0.35rem);
+    bottom: calc(env(safe-area-inset-bottom) + 1.8rem);
+    width: clamp(100px, 17vw, 150px);
+    padding: 0.3rem;
+  }
+  .experience.mobile-layout .input-heading { padding-bottom: 0.28rem; font-size: 0.4rem; }
+  .experience.mobile-layout .tracking-warning {
+    position: fixed;
+    top: calc(env(safe-area-inset-top) + 7.3rem);
+    right: auto;
+    bottom: auto;
+    left: calc(env(safe-area-inset-left) + 0.35rem);
+    width: clamp(140px, 20vw, 180px);
+    padding: 0.45rem;
+    font-size: 0.6rem;
+  }
+  .experience.mobile-layout .footer { min-height: 1.45rem; font-size: 0.55rem; }
+  .experience.mobile-layout .welcome,
+  .experience.mobile-layout .menu-panel,
+  .experience.mobile-layout .results-panel,
+  .experience.mobile-layout .help-panel {
+    top: 52%;
+    width: min(56vw, 510px);
+    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 3.5rem);
+    overflow-y: auto;
+  }
+  .experience.mobile-layout .welcome h1,
+  .experience.mobile-layout .menu-panel h1,
+  .experience.mobile-layout .results-panel h1 { font-size: clamp(1.8rem, 4vw, 3rem); }
+  .experience.mobile-layout .eyebrow { margin-bottom: 0.4rem; }
+  .experience.mobile-layout .intro-copy { margin-top: 0.5rem; font-size: 0.72rem; line-height: 1.35; }
+  .experience.mobile-layout .menu-actions { margin-top: 0.55rem; }
+  .experience.mobile-layout .start-button,
+  .experience.mobile-layout .secondary-button { min-height: 2.3rem; padding: 0.42rem 0.7rem; font-size: 0.72rem; }
+  .experience.mobile-layout .menu-caption,
+  .experience.mobile-layout .message { margin-top: 0.45rem; font-size: 0.64rem; }
+  .experience.mobile-layout .help-panel { padding: 0.7rem; }
+  .experience.mobile-layout .help-panel h2 { margin-bottom: 0.4rem; font-size: 1.15rem; }
+  .experience.mobile-layout .help-panel p:not(.eyebrow) { font-size: 0.68rem; line-height: 1.35; }
 }

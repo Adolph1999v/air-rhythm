@@ -1,7 +1,7 @@
 import { attachCamera, cameraErrorMessage, CameraFrameGate, requestCameraStream, stopCamera } from './camera'
 import { BrowserAudio } from './audio'
 import { RhythmGame } from './game'
-import { FingertipMotionTracker, HandStabilizer, WristVisibilityMonitor, type FingertipMotion } from './hands'
+import { FingertipMotionTracker, HandStabilizer, type FingertipMotion } from './hands'
 import { drawInputPreview, StageRenderer } from './stage'
 import { createHandTracker, trackedHandsFrom, type TrackedHand } from './tracking'
 import { createOpenCvFrameProcessor, type OpenCvFrameProcessor } from './opencv-frame'
@@ -34,7 +34,6 @@ const compactViewport = window.matchMedia(
 const game = new RhythmGame(Math.random, compactViewport.matches)
 const stage = new StageRenderer(requiredElement<HTMLCanvasElement>('#stage'), compactViewport.matches)
 const stabilizer = new HandStabilizer()
-const wristMonitor = new WristVisibilityMonitor()
 const motionTracker = new FingertipMotionTracker()
 const cameraFrames = new CameraFrameGate()
 const mirroredFrame = document.createElement('canvas')
@@ -48,7 +47,6 @@ let activeHands: TrackedHand[] = []
 let sessionId = 0
 let shownHandCount = -1
 let helpOpen = false
-let wristWarningActive = false
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
 
 function syncCompactViewport(): void {
@@ -68,7 +66,7 @@ function updateScreen(now = nowSeconds()): void {
     mode: experience.dataset.mode as Mode,
     screen: game.screen,
     help: helpOpen,
-    wristWarning: wristWarningActive,
+    handCount: Math.max(0, shownHandCount),
     countdown: game.round?.countdownRemaining(now) ?? 0,
   })
 }
@@ -97,8 +95,8 @@ function endSession(message: string, mode: Mode = 'idle'): void {
   if (audioContext) void audioContext.close().catch(() => {})
   audioContext = null
   activeHands = []
-  stabilizer.reset(); wristMonitor.reset(); motionTracker.reset(); game.toMenu()
-  helpOpen = false; shownHandCount = -1; wristWarningActive = false
+  stabilizer.reset(); motionTracker.reset(); game.toMenu()
+  helpOpen = false; shownHandCount = -1
   inputPreview.getContext('2d')?.clearRect(0, 0, inputPreview.width, inputPreview.height)
   cameraPlaceholder.hidden = false
   cameraBadge.textContent = 'CAMERA OFF'
@@ -221,7 +219,6 @@ function animationFrame(timeMs: number): void {
       frameProcessor?.process(video)
       if (tracker) {
         activeHands = stabilizer.update(trackedHandsFrom(tracker.detectForVideo(mirroredFrame, timeMs)), now)
-        wristWarningActive = wristMonitor.update(activeHands, now)
         setHandCount(activeHands.length)
         if (game.screen === 'challenge' || game.screen === 'free') {
           motions = motionTracker.update(activeHands, now, width, height)

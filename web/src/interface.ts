@@ -64,7 +64,7 @@ export function mountInterface(platform: 'web' | 'desktop'): void {
       <button id="resume-button" class="start-button" type="button">Resume <span aria-hidden="true">↗</span></button>
     </div>
     <aside class="input-panel" aria-label="Live camera input">
-      <div id="tracking-warning" class="tracking-warning" role="status" aria-live="polite" hidden><span aria-hidden="true">!</span><span>Keep your whole hand and wrist visible in the camera.</span></div>
+      <div id="tracking-warning" class="tracking-warning" role="status" aria-live="polite" hidden><span aria-hidden="true">!</span><span id="tracking-warning-text">Bring both hands into the camera view.</span></div>
       <div class="input-heading"><span><span class="live-dot" aria-hidden="true"></span> LIVE INPUT</span><span id="hand-count">HANDS 0/2</span></div>
       <div class="input-frame"><canvas id="input-preview" aria-label="Mirrored camera view with detected hand skeletons"></canvas><div id="camera-placeholder" class="camera-placeholder">Camera preview appears here</div></div>
     </aside>
@@ -90,13 +90,22 @@ export interface ScreenState {
   mode: 'idle' | 'starting' | 'live' | 'error'
   screen: 'menu' | 'challenge' | 'free' | 'results'
   help: boolean
-  wristWarning: boolean
+  handCount: number
   countdown: number
+}
+
+export function trackingReminder(state: ScreenState): string | null {
+  if (state.mode !== 'live' || state.help || (state.screen !== 'challenge' && state.screen !== 'free')) return null
+  if (state.handCount >= 2) return null
+  return state.handCount === 1
+    ? 'One hand detected. Bring your other hand into the camera view.'
+    : 'Bring both hands into the camera view.'
 }
 
 export function renderScreen(state: ScreenState): void {
   const live = state.mode === 'live'
   const screen = live ? state.screen : 'welcome'
+  const reminder = trackingReminder(state)
   const experience = requiredElement<HTMLElement>('.experience')
   experience.dataset.mode = state.mode
   experience.dataset.screen = screen
@@ -106,7 +115,7 @@ export function renderScreen(state: ScreenState): void {
     '#hud': live && (screen === 'challenge' || screen === 'free'),
     '#results': live && screen === 'results' && !state.help,
     '#help': live && state.help,
-    '#tracking-warning': live && !state.help && (screen === 'challenge' || screen === 'free') && state.wristWarning,
+    '#tracking-warning': reminder !== null,
     '#help-button': live && screen !== 'menu',
     '#restart-button': live && (screen === 'challenge' || screen === 'free'),
     '#menu-button': live && screen !== 'menu',
@@ -118,6 +127,7 @@ export function renderScreen(state: ScreenState): void {
     requiredElement<HTMLElement>(selector).hidden = !visible
   }
   requiredElement<HTMLButtonElement>('#start-button').disabled = state.mode === 'starting'
+  if (reminder !== null) setText('#tracking-warning-text', reminder)
   if (state.countdown > 0) setText('#countdown', String(Math.ceil(state.countdown)))
   setText('#mobile-hint', screen === 'challenge'
     ? 'Gold edge = next note · Touch any visible circle'

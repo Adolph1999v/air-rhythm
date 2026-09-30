@@ -9,7 +9,6 @@ interface Snapshot extends Omit<ScreenState, 'mode'> {
   clock: number
   hands: TrackedHand[]
   activeHands: TrackedHand[]
-  handCount: number
   sound: string
   muted: boolean
   privacy: string
@@ -88,7 +87,7 @@ function refreshFrame(frame: Frame): void {
   // Keep controls and screen state current even while the stage is not painting.
   renderScreen({
     mode: frame.mode, screen: state?.screen ?? 'menu', help: state?.help ?? false,
-    wristWarning: state?.wristWarning ?? false, countdown: state?.countdown ?? 0,
+    handCount: state?.handCount ?? 0, countdown: state?.countdown ?? 0,
   })
   diagnostics.hidden = !live || !state.debug
   if (live && state.debug) {
@@ -136,7 +135,7 @@ function animationFrame(timeMs: number): void {
     mode: latest.mode,
     screen: snapshot?.screen ?? 'menu',
     help: snapshot?.help ?? false,
-    wristWarning: snapshot?.wristWarning ?? false,
+    handCount: snapshot?.handCount ?? 0,
     countdown: Math.max(0, (snapshot?.countdown ?? 0) - (snapshot?.help ? 0 : Math.min(age, 0.1))),
   })
   if (running) requestAnimationFrame(animationFrame)

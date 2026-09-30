@@ -36,7 +36,7 @@ Plans are ranked by career and learning value:
 
 ## Milestone 1 — Portfolio-ready interface and technical visibility
 
-**Status:** Implemented with camera-free tests; live-camera and recording validation is still pending.
+**Status:** Implemented and exercised with live cameras in both versions. Final demo recording and a side-by-side desktop/browser review at the showcase resolution remain.
 
 ### Work
 
@@ -188,11 +188,11 @@ This will add original ML work while MediaPipe continues to provide the raw hand
 - Build a repeatable test checklist for bright, dim, and uneven lighting.
 - Test plain and cluttered backgrounds.
 - Test one hand, two hands, crossed hands, partial hands, and brief occlusion.
-- Give each detected hand a stable identity across frames so crossed hands cannot share movement history accidentally.
+- Measure identity switches during crossed-hand tests; stable Left/Right identities are already implemented.
 - Test slow movement and fast movement at several distances from the camera.
 - Record detection loss, false hits, missed hits, and recovery time.
 - Tune smoothing and collision settings from measurements rather than one recording.
-- Add graceful feedback when hand landmarks become unstable or disappear.
+- Evaluate whether the existing 0/2 and 1/2 hand-count reminder helps people recover from detection loss; add instability-specific feedback only if testing shows a need.
 
 ### Definition of Done
 

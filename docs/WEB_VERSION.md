@@ -2,6 +2,8 @@
 
 Air Rhythm runs as a [public browser game](https://air-rhythm.pages.dev/) as well as a Python desktop app. Both use the same HTML/CSS/Canvas interface, song chart, note visuals, and interaction rules. The browser adds a compact layout for phone-sized screens; normal desktop-sized browser windows retain the desktop presentation.
 
+Cloudflare Pages hosts the public browser version and automatically rebuilds it after changes are pushed to GitHub's `main` branch. The Python desktop app remains a local program; it is not hosted on the website.
+
 ## What runs where
 
 | Part | Desktop app | Browser version |

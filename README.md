@@ -4,6 +4,10 @@ Air Rhythm lets you play music by moving your hands in front of a webcam. A live
 
 🎮 **Play the live web version →** [air-rhythm.pages.dev](https://air-rhythm.pages.dev/)
 
+## Watch the demo
+
+https://github.com/user-attachments/assets/afc839c3-085a-44fa-a517-764dae4119da
+
 ## Computer vision in action
 
 ```text
@@ -48,6 +52,6 @@ With GNU Make, Node.js, and `uv` or Python 3.14 installed, run `make install` fr
 | [Play Guide](docs/PLAY_GUIDE.md) | Controls, challenge rules, scoring, music, and privacy views |
 | [Technical Overview](docs/TECHNICAL_OVERVIEW.md) | Model boundaries, camera-to-audio pipeline, and code structure |
 | [Performance Study](docs/PERFORMANCE_STUDY.md) | Benchmark method, before-and-after data, and limitations |
-| [Future Plan](docs/FUTURE_PLAN.md) | Demo, robustness tests, and future ML work |
+| [Future Plan](docs/FUTURE_PLAN.md) | Robustness tests and future ML work |
 
-The browser version is live; the desktop app can be run locally. Final demo recording, broader tracking checks, and post-deployment phone testing are still in progress.
+The browser version is live; the desktop app can be run locally.

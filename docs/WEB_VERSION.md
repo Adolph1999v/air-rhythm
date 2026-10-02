@@ -52,6 +52,14 @@ Portrait and short landscape screens use a compact score card and smaller camera
 
 The phone footer shows a game cue instead of keyboard shortcuts. Use the visible **Mute**, **Help**, **Restart**, and **Menu** buttons; **Stop camera** is available from the menu. For a roomier view without browser tabs, use the phone browser's **Add to Home Screen** option and launch Air Rhythm from its icon. The web app manifest requests a standalone window, but the exact browser chrome depends on the phone and browser. This remains a website, not a native mobile app, and it needs a network connection; no offline mode is promised.
 
+## Sharing the public website
+
+The public [entry page](../web/index.html) includes Open Graph metadata directly in its HTML, so link-preview crawlers can read the title, description, URL, and image without starting the game or requesting camera access. The preview uses a checked-in [1200×627 PNG](../web/public/social-preview.png), exported from an editable [SVG source](../web/assets/social-preview.svg). It is a branded illustration, not a camera recording. Neither asset is loaded by the gameplay interface.
+
+Vite copies the PNG from `web/public/` into the production build. Sharing metadata uses absolute URLs for `https://air-rhythm.pages.dev/`; update the canonical URL, `og:url`, and `og:image` together if the public domain changes. When editing the SVG, export a new 1200×627 PNG to the same path and keep it below 5 MB. Browser tests check the metadata, image dimensions, and size.
+
+After the updated build is deployed, inspect the public URL in [LinkedIn Post Inspector](https://www.linkedin.com/post-inspector/) to refresh and check the preview, then retry adding the link to profile media. LinkedIn controls the final card rendering and Projects-link acceptance; a passing local test does not verify those external results. These tags apply only to the public entry page, not `desktop.html`.
+
 ## Privacy and current limits
 
 Camera frames, landmarks, and synthesized audio are processed on the visitor's device; the game does not upload or save a camera recording. The main stage never displays the whole camera frame. The live-input inset **does** show the camera and skeleton. Unlike the desktop app, the browser does not yet offer the `P` hands-only or skeleton-only privacy modes, the `D` technical overlay, or the `B` benchmark recorder.

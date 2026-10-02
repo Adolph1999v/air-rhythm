@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="627" viewBox="0 0 1200 627" role="img" aria-labelledby="title description">
+  <title id="title">Air Rhythm — Computer Vision Rhythm Game</title>
+  <desc id="description">Make the music move. A black starry stage, glowing musical notes, and fingertip-controlled virtual drumsticks.</desc>
+  <defs>
+    <radialGradient id="stage-light" cx="78%" cy="44%" r="65%">
+      <stop offset="0" stop-color="#071626"/>
+      <stop offset="1" stop-color="#020305"/>
+    </radialGradient>
+    <radialGradient id="note" cx="36%" cy="30%" r="75%">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.12" stop-color="#5387ff"/>
+      <stop offset="0.30" stop-color="#2151b5"/>
+      <stop offset="0.83" stop-color="#101925"/>
+      <stop offset="1" stop-color="#2d6bff"/>
+    </radialGradient>
+    <filter id="blue-glow" x="-55%" y="-55%" width="210%" height="210%">
+      <feGaussianBlur stdDeviation="13"/>
+    </filter>
+    <filter id="cyan-glow" x="-70%" y="-70%" width="240%" height="240%">
+      <feGaussianBlur stdDeviation="6"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="627" fill="url(#stage-light)"/>
+  <g fill="#b7c8dd">
+    <circle cx="39" cy="183" r="1.2" opacity="0.40"/>
+    <circle cx="151" cy="33" r="1" opacity="0.30"/>
+    <circle cx="267" cy="105" r="1.1" opacity="0.32"/>
+    <circle cx="353" cy="43" r="1.4" opacity="0.30"/>
+    <circle cx="518" cy="70" r="1" opacity="0.40"/>
+    <circle cx="595" cy="120" r="1.1" opacity="0.38"/>
+    <circle cx="677" cy="44" r="1.6" opacity="0.50"/>
+    <circle cx="745" cy="123" r="1" opacity="0.40"/>
+    <circle cx="830" cy="80" r="1.1" opacity="0.27"/>
+    <circle cx="963" cy="52" r="1.3" opacity="0.36"/>
+    <circle cx="1120" cy="65" r="1.4" opacity="0.50"/>
+    <circle cx="1173" cy="242" r="1.2" opacity="0.45"/>
+    <circle cx="769" cy="266" r="1.2" opacity="0.27"/>
+    <circle cx="638" cy="314" r="1" opacity="0.35"/>
+    <circle cx="709" cy="408" r="1.6" opacity="0.34"/>
+    <circle cx="42" cy="408" r="1.1" opacity="0.35"/>
+    <circle cx="281" cy="466" r="1" opacity="0.30"/>
+    <circle cx="501" cy="463" r="1" opacity="0.34"/>
+    <circle cx="811" cy="497" r="1.4" opacity="0.42"/>
+    <circle cx="1018" cy="500" r="1.1" opacity="0.35"/>
+    <circle cx="1162" cy="458" r="1.3" opacity="0.35"/>
+    <circle cx="655" cy="586" r="1" opacity="0.25"/>
+    <circle cx="902" cy="597" r="1.2" opacity="0.35"/>
+    <circle cx="1105" cy="589" r="1.2" opacity="0.35"/>
+  </g>
+  <g fill="none" stroke="#243442" stroke-width="1">
+    <circle cx="946" cy="311" r="160" opacity="0.47"/>
+    <circle cx="946" cy="311" r="246" opacity="0.35"/>
+  </g>
+  <path d="M89 62 94 81 113 86 94 91 89 110 84 91 65 86 84 81Z" fill="#61e4ff"/>
+  <g font-family="Arial, Helvetica, sans-serif">
+    <text x="129" y="95" fill="#f5f8ff" font-size="22" font-weight="700" letter-spacing="3">AIR RHYTHM</text>
+    <text x="76" y="163" fill="#61e4ff" font-size="13" font-weight="700" letter-spacing="2.8">REAL-TIME COMPUTER VISION</text>
+    <text x="72" y="264" fill="#f5f8ff" font-size="76" font-weight="700" letter-spacing="-3.5">Make the</text>
+    <text x="72" y="346" fill="#f5f8ff" font-size="76" font-weight="700" letter-spacing="-3.5">music move.</text>
+    <text x="76" y="400" fill="#b6c5d3" font-size="21">Catch falling notes with your fingertips.</text>
+    <text x="76" y="434" fill="#8ca5b5" font-size="16">OpenCV.js + MediaPipe Hand Landmarker</text>
+    <rect x="76" y="478" width="250" height="54" rx="14" fill="#68def6"/>
+    <text x="99" y="512" fill="#04131b" font-size="18" font-weight="700">Play the live demo</text>
+    <path d="M286 512 301 497M290 497H301V508" fill="none" stroke="#04131b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <g fill="#2d6bff" opacity="0.55" filter="url(#blue-glow)">
+    <circle cx="1053" cy="146" r="61"/>
+    <circle cx="880" cy="261" r="85"/>
+    <circle cx="1052" cy="367" r="66"/>
+  </g>
+  <g fill="url(#note)" stroke="#2d6bff" stroke-width="4">
+    <circle cx="1053" cy="146" r="56"/>
+    <circle cx="1052" cy="367" r="61"/>
+    <circle cx="880" cy="261" r="79" stroke="#ffe07a" stroke-width="6"/>
+  </g>
+  <g font-family="Arial, Helvetica, sans-serif" text-anchor="middle" font-weight="700">
+    <g fill="#f8fbff" stroke="#06111b" stroke-width="4" paint-order="stroke">
+      <text x="1053" y="152" font-size="30">D#5</text>
+      <text x="880" y="266" font-size="43">E5</text>
+      <text x="1052" y="374" font-size="33">A4</text>
+    </g>
+    <g fill="#bed0df" font-size="16">
+      <text x="1053" y="175">02</text>
+      <text x="880" y="301">01</text>
+      <text x="1052" y="401">09</text>
+    </g>
+  </g>
+  <g fill="none" stroke-linecap="round">
+    <path d="M928 514 890 354" stroke="#47ddff" stroke-width="28" opacity="0.6" filter="url(#cyan-glow)"/>
+    <path d="M928 514 890 354" stroke="#173e49" stroke-width="23"/>
+    <path d="M928 514 890 354" stroke="#ebb778" stroke-width="13"/>
+    <path d="M925 511 887 357" stroke="#fff1d3" stroke-width="3"/>
+    <path d="M1134 522 1093 434" stroke="#ff5ee0" stroke-width="24" opacity="0.25" filter="url(#cyan-glow)"/>
+    <path d="M1134 522 1093 434" stroke="#45233e" stroke-width="20"/>
+    <path d="M1134 522 1093 434" stroke="#ebb778" stroke-width="11"/>
+    <path d="M1131 520 1090 437" stroke="#fff1d3" stroke-width="3"/>
+  </g>
+  <circle cx="890" cy="354" r="10" fill="#47ddff"/>
+  <circle cx="890" cy="354" r="4" fill="#effbff"/>
+  <circle cx="1093" cy="434" r="9" fill="#ff5ee0"/>
+  <circle cx="1093" cy="434" r="3.5" fill="#fff0fc"/>
+  <path d="M76 561H1124" stroke="#20313c" stroke-width="1"/>
+  <g font-family="Arial, Helvetica, sans-serif" font-size="15">
+    <text x="76" y="592" fill="#b6c5d3">air-rhythm.pages.dev</text>
+    <text x="1124" y="592" fill="#8ca5b5" text-anchor="end">Camera footage stays on your device.</text>
+  </g>
+</svg>

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_SITE_URL, deploymentHtml, deploymentSettings } from '../site-config'
 
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8')
-const pagesUrl = 'https://adolph1999v.github.io/air_rhythm/'
+const pagesUrl = 'https://adolph1999v.github.io/air-rhythm/'
 
 describe('deployment settings', () => {
   it('preserves the Cloudflare and desktop defaults', () => {
@@ -12,7 +12,7 @@ describe('deployment settings', () => {
   })
 
   it('uses the repository subdirectory for GitHub Pages assets', () => {
-    expect(deploymentSettings(pagesUrl.slice(0, -1))).toEqual({ siteUrl: pagesUrl, base: '/air_rhythm/' })
+    expect(deploymentSettings(pagesUrl.slice(0, -1))).toEqual({ siteUrl: pagesUrl, base: '/air-rhythm/' })
   })
 
   it('uses HTTPS URLs without unsafe URL components', () => {

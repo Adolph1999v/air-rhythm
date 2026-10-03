@@ -16,14 +16,14 @@ The commands below use a macOS/Linux-style shell. The browser-only `cd web`, `np
 
 ## Get the project
 
-Download the [GitHub repository](https://github.com/Adolph1999v/air_rhythm) as a ZIP and extract it, or clone it:
+Download the [GitHub repository](https://github.com/Adolph1999v/air-rhythm) as a ZIP and extract it, or clone it:
 
 ```sh
-git clone https://github.com/Adolph1999v/air_rhythm.git
-cd air_rhythm
+git clone https://github.com/Adolph1999v/air-rhythm.git
+cd air-rhythm
 ```
 
-For a ZIP, open Terminal in the extracted folder instead (usually `air_rhythm-main`). Run every remaining command from the repository root unless the instructions say to enter `web/`.
+For a ZIP, open Terminal in the extracted folder instead (usually `air-rhythm-main`). Run every remaining command from the repository root unless the instructions say to enter `web/`.
 
 ## With Make
 

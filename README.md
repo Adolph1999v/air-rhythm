@@ -4,6 +4,8 @@ Air Rhythm lets you play music by moving your hands in front of a webcam. A live
 
 🎮 **Play the live web version →** [air-rhythm.pages.dev](https://air-rhythm.pages.dev/)
 
+**Alternative live link →** [GitHub Pages](https://adolph1999v.github.io/air_rhythm/)
+
 ## Watch the demo
 
 https://github.com/user-attachments/assets/afc839c3-085a-44fa-a517-764dae4119da

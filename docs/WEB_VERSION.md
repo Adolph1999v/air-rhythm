@@ -4,6 +4,8 @@ Air Rhythm runs as a [public browser game](https://air-rhythm.pages.dev/) as wel
 
 Cloudflare Pages hosts the public browser version and automatically rebuilds it after changes are pushed to GitHub's `main` branch. The Python desktop app remains a local program; it is not hosted on the website.
 
+A second deployment is available on [GitHub Pages](https://adolph1999v.github.io/air_rhythm/). Its [deployment workflow](../.github/workflows/pages.yml) tests, builds, and publishes the browser game after changes to the web app or hand model on `main`. Cloudflare remains enabled independently.
+
 ## What runs where
 
 | Part | Desktop app | Browser version |
@@ -56,7 +58,7 @@ The phone footer shows a game cue instead of keyboard shortcuts. Use the visible
 
 The public [entry page](../web/index.html) includes Open Graph metadata directly in its HTML, so link-preview crawlers can read the title, description, URL, and image without starting the game or requesting camera access. The preview uses a checked-in [1200×627 PNG](../web/public/social-preview.png), exported from an editable [SVG source](../web/assets/social-preview.svg). It is a branded illustration, not a camera recording. Neither asset is loaded by the gameplay interface.
 
-Vite copies the PNG from `web/public/` into the production build. Sharing metadata uses absolute URLs for `https://air-rhythm.pages.dev/`; update the canonical URL, `og:url`, and `og:image` together if the public domain changes. When editing the SVG, export a new 1200×627 PNG to the same path and keep it below 5 MB. Browser tests check the metadata, image dimensions, and size.
+Vite copies the PNG from `web/public/` into the production build. Sharing metadata defaults to absolute URLs for `https://air-rhythm.pages.dev/`. Set `AIR_RHYTHM_SITE_URL` at build time to change the canonical URL, `og:url`, and `og:image` together and use the site's path for asset loading. The GitHub Pages workflow supplies its public URL automatically, including the `/air_rhythm/` subdirectory; Cloudflare and local desktop builds keep their existing defaults. To reproduce the Pages build locally, run `AIR_RHYTHM_SITE_URL=https://adolph1999v.github.io/air_rhythm/ npm run build` inside `web/`. When editing the SVG, export a new 1200×627 PNG to the same path and keep it below 5 MB. Browser tests check the metadata, image dimensions, size, and deployment URL handling.
 
 After the updated build is deployed, inspect the public URL in [LinkedIn Post Inspector](https://www.linkedin.com/post-inspector/) to refresh and check the preview, then retry adding the link to profile media. LinkedIn controls the final card rendering and Projects-link acceptance; a passing local test does not verify those external results. These tags apply only to the public entry page, not `desktop.html`.
 

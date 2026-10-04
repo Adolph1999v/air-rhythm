@@ -194,6 +194,23 @@ This will add original ML work while MediaPipe continues to provide the raw hand
 - Tune smoothing and collision settings from measurements rather than one recording.
 - Evaluate whether the existing 0/2 and 1/2 hand-count reminder helps people recover from detection loss; add instability-specific feedback only if testing shows a need.
 
+### Planned beginner assistance — Tracking-loss pause and recovery
+
+Status: Planned, not implemented. Suggested in community feedback on the demo, for both the desktop and browser versions.
+
+Currently, losing a hand disables its collision points immediately and can retain its final stick pose visually for up to 140 ms. The song timeline keeps running, so tracking loss can still lead to missed notes. The wrist-position prompt helps players stay in view, but does not pause the round.
+
+Goal: Help new players distinguish a tracking failure from a genuinely missed note, without making brief detection fluctuations repeatedly interrupt the song.
+
+- Add an optional beginner-assistance mode that pauses after a short, configurable tracking-loss grace period. Determine the threshold through testing rather than choosing it from one demo.
+- Define which hands the selected mode expects before starting; distinguish loss of a required hand from intentional one-hand play where supported.
+- Show a clear tracking-loss message with guidance to bring the hands and wrists back into view. Freeze the song timeline, note movement, and gameplay-related audio scheduling; suspend miss penalties and combo changes while paused.
+- Keep camera capture and hand detection running during the pause so tracking can recover.
+- Resume only after fresh tracking is stable, using a short countdown or player confirmation. Reset movement history so reacquisition cannot trigger a false strike, and preserve note timing across the pause.
+- Keep assisted rounds distinguishable from uninterrupted challenge rounds, since automatic pauses change rhythm flow and scoring conditions.
+
+Validation: Test brief frame-edge exits, partial hands, occlusion, repeated dropouts, and loss of one or both required hands. Measure unnecessary pauses, recovery time, and false hits after resuming on both versions. Verify that paused time does not advance notes or add misses, and that genuine gameplay misses still count outside a pause. Pausing is a usability aid, not a fix for the underlying tracking failure.
+
 ### Definition of Done
 
 - At least three lighting conditions and three background conditions are documented.
